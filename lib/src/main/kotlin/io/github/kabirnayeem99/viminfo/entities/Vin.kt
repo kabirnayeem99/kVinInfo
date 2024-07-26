@@ -3,7 +3,7 @@ package io.github.kabirnayeem99.viminfo.entities
 import io.github.kabirnayeem99.viminfo.data.manufacturers
 import io.github.kabirnayeem99.viminfo.data.years
 import io.github.kabirnayeem99.viminfo.exceptions.InvalidVinLengthException
-import io.github.kabirnayeem99.viminfo.exceptions.InvalidVinRegionChar
+import io.github.kabirnayeem99.viminfo.exceptions.InvalidVinRegionCharException
 import io.github.kabirnayeem99.viminfo.exceptions.InvalidVinYearException
 
 data class Vin(
@@ -46,7 +46,7 @@ data class Vin(
                 regexNA.containsMatchIn(regionId) -> "NA"
                 regexOC.containsMatchIn(regionId) -> "OC"
                 regexSA.containsMatchIn(regionId) -> "SA"
-                else -> throw InvalidVinRegionChar(regionId)
+                else -> throw InvalidVinRegionCharException(regionId)
             }
         }
 

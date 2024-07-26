@@ -89,4 +89,8 @@ class VinInfoTest {
         }
     }
 
+    @Test
+    fun `VIN region should throw InvalidVinRegionCharException`() {
+    }
+
 }
