@@ -2,6 +2,9 @@ package io.github.kabirnayeem99.viminfo.entities
 
 import io.github.kabirnayeem99.viminfo.data.manufacturers
 import io.github.kabirnayeem99.viminfo.data.years
+import io.github.kabirnayeem99.viminfo.exceptions.InvalidVinLengthException
+import io.github.kabirnayeem99.viminfo.exceptions.InvalidVinRegionChar
+import io.github.kabirnayeem99.viminfo.exceptions.InvalidVinYearException
 
 data class Vin(
     val number: String,
@@ -15,17 +18,19 @@ data class Vin(
 
     private val validVinRegex = "^[a-zA-Z0-9]+$".toRegex()
 
-    fun isValid(number: String? = null): Boolean {
-        val normalizedNumber = (number ?: this.number).normalize()
-        return validVinRegex.matches(normalizedNumber) && normalizedNumber.length == 17
-    }
+    val isValid: Boolean
+        get() = validVinRegex.matches(normalizedNumber) && normalizedNumber.length == 17
+
 
     val year: Int
-        get() = years[modelYear] ?: throw IllegalStateException("Invalid model year: $modelYear")
+        get() = years[yearCharacter] ?: throw InvalidVinYearException(yearCharacter)
 
     val region: String
         get() {
-            val regionId = number[0].toString()
+            val regionId =
+                normalizedNumber.getOrNull(0)?.toString() ?: throw InvalidVinLengthException(
+                    normalizedNumber
+                )
 
             val regexAF = Regex("[A-H]", RegexOption.IGNORE_CASE)
             val regexAS = Regex("[J-R]", RegexOption.IGNORE_CASE)
@@ -41,12 +46,13 @@ data class Vin(
                 regexNA.containsMatchIn(regionId) -> "NA"
                 regexOC.containsMatchIn(regionId) -> "OC"
                 regexSA.containsMatchIn(regionId) -> "SA"
-                else -> throw Exception("Invalid region ID: $regionId")
+                else -> throw InvalidVinRegionChar(regionId)
             }
         }
 
     val manufacturer: String
         get() {
+            if (wmi.isBlank()) throw InvalidVinLengthException(normalizedNumber)
             return if (manufacturers.containsKey(this.wmi)) {
                 manufacturers[this.wmi]
                     ?: throw Exception("Unknown World Manufacturer Identifier (WMI): ${this.wmi.uppercase()}")
@@ -72,6 +78,7 @@ data class Vin(
     val serialNumber: String
         get() = normalizedNumber.substring(12, 17)
 
+//    suspend fun
     // Future<void> _fetchExtendedVehicleInfo() async {
     //    if (this._vehicleInfo.isEmpty && extended == true) {
     //      this._vehicleInfo = await NHTSA.decodeVinValues(this.number);
@@ -100,7 +107,7 @@ data class Vin(
     //  }
 
 
-    private val modelYear: Char
+    private val yearCharacter: Char
         get() = normalizedNumber.getOrNull(9) ?: throw Exception("Invalid VIN Length")
 
 
@@ -116,9 +123,9 @@ data class Vin(
                 number = number,
                 isExtended = isExtended,
                 normalizedNumber = normalizedNumber,
-                wmi = normalizedNumber.substring(0, 3),
-                vds = normalizedNumber.substring(3, 9),
-                vis = normalizedNumber.substring(9, 17),
+                wmi = if (number.length >= 3) normalizedNumber.substring(0, 3) else "",
+                vds = if (number.length >= 9) normalizedNumber.substring(3, 9) else "",
+                vis = if (number.length >= 17) normalizedNumber.substring(9, 17) else "",
             )
         }
     }
