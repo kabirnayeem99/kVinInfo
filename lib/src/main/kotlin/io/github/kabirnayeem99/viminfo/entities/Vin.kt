@@ -1,5 +1,6 @@
 package io.github.kabirnayeem99.viminfo.entities
 
+import io.github.kabirnayeem99.viminfo.data.manufacturers
 import io.github.kabirnayeem99.viminfo.data.years
 
 data class Vin(
@@ -43,6 +44,61 @@ data class Vin(
                 else -> throw Exception("Invalid region ID: $regionId")
             }
         }
+
+    val manufacturer: String
+        get() {
+            return if (manufacturers.containsKey(this.wmi)) {
+                manufacturers[this.wmi]
+                    ?: throw Exception("Unknown World Manufacturer Identifier (WMI): ${this.wmi.uppercase()}")
+            } else {
+                val alternativeWmiId = this.wmi.substring(0, 2)
+                if (manufacturers.containsKey(alternativeWmiId)) {
+                    manufacturers[alternativeWmiId]
+                        ?: throw Exception("Unknown World Manufacturer Identifier (WMI): ${alternativeWmiId.uppercase()}")
+                } else {
+                    throw Exception("Unknown World Manufacturer Identifier (WMI): ${this.wmi.uppercase()}")
+                }
+            }
+
+        }
+
+    val checksum: Char
+        get() = if (region != "EU") normalizedNumber[8] else throw Exception("No CheckSum for the Europe region.")
+
+    val assemblyPlant: Char
+        get() = normalizedNumber.getOrNull(10)
+            ?: throw Exception("Wrong VIN Number length: ${normalizedNumber.length}")
+
+    val serialNumber: String
+        get() = normalizedNumber.substring(12, 17)
+
+    // Future<void> _fetchExtendedVehicleInfo() async {
+    //    if (this._vehicleInfo.isEmpty && extended == true) {
+    //      this._vehicleInfo = await NHTSA.decodeVinValues(this.number);
+    //    }
+    //  }
+    //
+    //  /// Get the Make of the vehicle from the NHTSA database if [extended] mode
+    //  /// is enabled.
+    //  Future<String> getMakeAsync() async {
+    //    await _fetchExtendedVehicleInfo();
+    //    return this._vehicleInfo['Make'];
+    //  }
+    //
+    //  /// Get the Model of the vehicle from the NHTSA database if [extended] mode
+    //  /// is enabled.
+    //  Future<String> getModelAsync() async {
+    //    await _fetchExtendedVehicleInfo();
+    //    return this._vehicleInfo['Model'];
+    //  }
+    //
+    //  /// Get the Vehicle Type from the NHTSA database if [extended] mode is
+    //  /// enabled.
+    //  Future<String> getVehicleTypeAsync() async {
+    //    await _fetchExtendedVehicleInfo();
+    //    return this._vehicleInfo['VehicleType'];
+    //  }
+
 
     private val modelYear: Char
         get() = normalizedNumber.getOrNull(9) ?: throw Exception("Invalid VIN Length")
