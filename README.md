@@ -1,23 +1,36 @@
-# kVinInfo
+# kVINInfo: A Kotlin Library for VIN Processing
 
-kVinInfo is a pure Kotlin library designed for Vehicle Identification Number (VIN) related tasks. It
-provides functionalities for VIN validation, information extraction, random VIN generation, and
-more. This library is heavily inspired from a python library
-named [vin-decoder-dart](https://github.com/adaptant-labs/vin-decoder-dart)
+kVINInfo is a pure Kotlin library designed to simplify tasks related to Vehicle Identification
+Numbers (VINs). It offers a comprehensive suite of functionalities, including:
+
+- **VIN Validation**: Ensures the provided VIN adheres to the correct format and checksum.
+- **Information Extraction**: Extracts valuable details from the VIN, such as manufacturer, model
+  year, and region of origin.
+- **Random VIN Generation**: Generates random or mocked VIN numbers for testing or educational
+  purposes.
+
+**Inspiration**: This library draws inspiration from the Dart
+library[vin-decoder-dart](https://github.com/adaptant-labs/vin-decoder-dart)
 by [Adaptant Labs](https://github.com/adaptant-labs).
 
-## Description
+# Usage
 
-Extracts useful information from Vehicle Identification Number (VIN)
+```kotlin
+val vin = "WBA3A5G59DNP26082"
+val vinInfo = VinInfo.fromNumber(vin)
+vinInfo.use { println(it.year) } // 2013
+```
 
-- Pure Kotlin library that can be used both in Android and KMP projects.
-- Gives basic and detailed info (is available) about VIN.
-- Allows VIN checksum verification.
-- Enables to generate mocked or random VIN numbers.
+## Key Features
 
-Additional info available for many vehicles from:
+- **Pure Kotlin**: Seamless integration with Kotlin projects, including Android and Kotlin
+  Multiplatform (KMP) environments.
+- **Detailed Information Extraction**: Uncovers a wide range of information from the VIN, depending
+  on availability.
+- **Checksum Verification**: Guarantees the validity of the VIN by verifying the checksum.
+- **Random VIN Generation**: Creates random or mocked VINs for various use cases.
 
-- AvtoVAZ
-- Nissan
-- Opel
-- Renault
+## Contributions
+
+We welcome contributions!
+If you have any suggestions or improvements for kVINInfo, feel free to open an issue or make a PR.
