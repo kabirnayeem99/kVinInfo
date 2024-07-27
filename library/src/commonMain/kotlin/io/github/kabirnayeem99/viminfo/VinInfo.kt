@@ -13,6 +13,27 @@ import io.github.kabirnayeem99.viminfo.exceptions.InvalidWmiForCountryException
 import io.github.kabirnayeem99.viminfo.network.NhtsaUsaApi
 import kotlin.jvm.JvmStatic
 
+/**
+ * Represents a Vehicle Identification Number (VIN) and provides methods for parsing, validation, and extraction of relevant data.
+ *
+ * This class encapsulates information about a VIN, including its constituent parts and associated data. It offers functionalities to:
+ * - Parse a VIN string into its components (WMI, VDS, VIS, Country, Region, Brand, Make, Model and so on).
+ * - Validate the VIN based on basic format checks and optional NHTSA validation.
+ * - Extract information such as year, manufacturer, and region.
+ * - Generate a JSON representation of the VIN data.
+ *
+ * **Example:**
+ * ```kotlin
+ * val vin = "WBA3A5G59DNP26082"
+ * val vinInfo = VinInfo.fromNumber(vin)
+ * println(vinInfo.year)
+ * ```
+ * A VIN (Vehicle Identification Number) is a unique 17-character code assigned to every individual motor vehicle. It's like a fingerprint for a car, ensuring no two vehicles have the same identifier.
+ *
+ * For more information on decoding the VDS, use https://en.wikibooks.org/wiki/Vehicle_Identification_Numbers_(VIN_codes)
+ *
+ * **Note:** This class is designed for basic VIN processing and validation. For more complex VIN-related operations, consider using specialized libraries or databases.
+ */
 class VinInfo private constructor(
     /**
      * The normalized VIN number, prepared for processing.
@@ -47,8 +68,7 @@ class VinInfo private constructor(
      */
     val wmi: String
         get() = if (normalizedNumber.length >= 3) normalizedNumber.substring(
-            0,
-            3
+            0, 3
         ) else throw InvalidVinLengthException(normalizedNumber)
 
     /**
@@ -60,8 +80,7 @@ class VinInfo private constructor(
      */
     val vds: String
         get() = if (normalizedNumber.length >= 9) normalizedNumber.substring(
-            3,
-            9
+            3, 9
         ) else throw InvalidVinLengthException(normalizedNumber)
 
     /**
@@ -73,8 +92,7 @@ class VinInfo private constructor(
      */
     val vis: String
         get() = if (normalizedNumber.length >= 17) normalizedNumber.substring(
-            9,
-            17
+            9, 17
         ) else throw InvalidVinLengthException(normalizedNumber)
 
 
