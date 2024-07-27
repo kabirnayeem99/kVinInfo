@@ -134,6 +134,7 @@ $RECYCLE.BIN/
 .idea/workspace.xml
 .idea_modules/
 .kotlin/
+.kotlin/metadata/
 .mtj.tmp/
 .navigation/
 .nfs*
