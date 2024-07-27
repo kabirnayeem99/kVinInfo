@@ -335,14 +335,45 @@ class VinInfo private constructor(private val normalizedNumber: String) : AutoCl
          * This function parses the provided number string and extracts relevant information
          * based on its length. The extracted information is stored in the returned `VinInfo` object.
          *
+         * **Example:**
+         * ```kotlin
+         * val vin = "WBA3A5G59DNP26082"
+         * val vinInfo = VinInfo.fromNumber(vin)
+         * ```
+         *
          * @param number The VIN number as a string.
          * @return A `VinInfo` object containing parsed information from the number string.
+         * @throws InvalidVinLengthException if the VIN number is Blank
          */
         @JvmStatic
         fun fromNumber(number: String): VinInfo {
+            if (number.isBlank()) throw InvalidVinLengthException(number)
             val normalizedNumber = number.normalize()
             return VinInfo(normalizedNumber = normalizedNumber)
         }
+
+        /**
+         * Extracts information from a VIN (Vehicle Identification Number) and executes a lambda function with the extracted data.
+         *
+         * **Example:**
+         * ```kotlin
+         * val vin = "WBA3A5G59DNP26082"
+         * val vinInfo = VinInfo.fromNumber(vin)
+         * "WBA3A5G59DNP26082".extractVinInfo {
+         *     println(year)  // 2013
+         *     println(region)  // Europe
+         *     println(getMakeFromNhtsa())  // BMW S24
+         * }
+         * ```
+         *
+         * @receiver The VIN string from which to extract information.
+         * @param info A lambda function that receives a `VinInfo` instance as its receiver.
+         *             This lambda can be used to access and manipulate the extracted VIN information.
+         * @throws InvalidVinLengthException if the VIN number is Blank
+         */
+        fun String.extractVinInfo(info: VinInfo.() -> Unit) =
+            fromNumber(this).use { vinInfo -> vinInfo.info() }
+
     }
 
 
