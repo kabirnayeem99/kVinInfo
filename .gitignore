@@ -133,6 +133,7 @@ $RECYCLE.BIN/
 .idea/vcs.xml
 .idea/workspace.xml
 .idea_modules/
+.kotlin/
 .mtj.tmp/
 .navigation/
 .nfs*
