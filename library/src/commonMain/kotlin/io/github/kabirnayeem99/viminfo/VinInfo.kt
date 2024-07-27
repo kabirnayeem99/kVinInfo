@@ -1,5 +1,6 @@
 package io.github.kabirnayeem99.viminfo
 
+import io.github.kabirnayeem99.viminfo.data.getCountryFromWmi
 import io.github.kabirnayeem99.viminfo.data.manufacturers
 import io.github.kabirnayeem99.viminfo.data.years
 import io.github.kabirnayeem99.viminfo.exceptions.InvalidVinLengthException
@@ -8,6 +9,7 @@ import io.github.kabirnayeem99.viminfo.exceptions.InvalidVinYearException
 import io.github.kabirnayeem99.viminfo.exceptions.InvalidWmiException
 import io.github.kabirnayeem99.viminfo.exceptions.NoChecksumForEuException
 import io.github.kabirnayeem99.viminfo.exceptions.NhtsaDatabaseFailedException
+import io.github.kabirnayeem99.viminfo.exceptions.InvalidWmiForCountryException
 import io.github.kabirnayeem99.viminfo.network.NhtsaUsaApi
 
 data class VinInfo(
@@ -119,6 +121,17 @@ data class VinInfo(
      */
     val region: String
         get() = regionMap[regionCode] ?: throw IllegalArgumentException("Wrong region code.")
+
+    /**
+     * The country associated with the VIN.
+     *
+     * This property retrieves the country based on the World Manufacturer Identifier (WMI) part of the VIN.
+     *
+     * @return The country name.
+     * @throws InvalidWmiForCountryException If the WMI does not match the expected country code.
+     */
+    val country: String
+        get() = getCountryFromWmi(wmi)
 
     /**
      * The region code associated with the VIN.
