@@ -10,8 +10,10 @@ Numbers (VINs). It offers a comprehensive suite of functionalities, including:
   purposes.
 
 **Inspiration**: This library draws inspiration from the Dart
-library[vin-decoder-dart](https://github.com/adaptant-labs/vin-decoder-dart)
-by [Adaptant Labs](https://github.com/adaptant-labs).
+library [vin-decoder-dart](https://github.com/adaptant-labs/vin-decoder-dart)
+by [Adaptant Labs](https://github.com/adaptant-labs)
+and [vindecoder.js](https://gist.github.com/kevboutin/3ac029e336fc7cafd20c05adda42ffa5)
+by [Kevin Boutin](https://gist.github.com/kevboutin).
 
 # Usage
 
