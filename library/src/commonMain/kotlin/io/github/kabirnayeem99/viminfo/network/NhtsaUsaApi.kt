@@ -179,10 +179,14 @@ internal class NhtsaUsaApi(private val vinNumber: String) : AutoCloseable {
      * It clears the cached API response and closes the underlying HTTP client.
      */
     override fun close() {
-        isClosed = true
-        cachedApiResponse = null
-        decodedValueMap.clear()
-        httpClient.close()
+        try {
+            isClosed = true
+            cachedApiResponse = null
+            decodedValueMap.clear()
+            httpClient.close()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
 }
