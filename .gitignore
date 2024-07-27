@@ -189,9 +189,3 @@ render.experimental.xml
 replay_pid*
 timeline.xctimeline
 xcuserdata/
-.kotlin/metadata/kotlinTransformedCInteropMetadataLibraries/.library-appleMain.cinteropLibraries
-.kotlin/metadata/kotlinTransformedCInteropMetadataLibraries/.library-appleTest.cinteropLibraries
-.kotlin/metadata/kotlinTransformedCInteropMetadataLibraries/.library-iosMain.cinteropLibraries
-.kotlin/metadata/kotlinTransformedCInteropMetadataLibraries/.library-iosTest.cinteropLibraries
-.kotlin/metadata/kotlinTransformedCInteropMetadataLibraries/.library-nativeMain.cinteropLibraries
-.kotlin/metadata/kotlinTransformedCInteropMetadataLibraries/.library-nativeTest.cinteropLibraries
