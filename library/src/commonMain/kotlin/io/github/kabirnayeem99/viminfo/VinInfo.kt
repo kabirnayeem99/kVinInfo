@@ -41,11 +41,12 @@ data class VinInfo(
     /**
      * Indicates whether the VIN passes a basic format check.
      *
-     * This property performs a preliminary validation based on the VIN's length and adherence to a basic regular expression pattern.
-     * It does not guarantee the VIN's overall validity or correctness.
+     * This property performs a preliminary validation based on the VIN's length, adherence to a basic regular expression pattern, and the calculated check digit matching the VIN's check digit at the ninth position.
+     *
+     * It does not guarantee the VIN's overall validity or correctness, as the check digit position might vary for certain VIN standards.
      */
     val isValid: Boolean
-        get() = validVinRegex.matches(normalizedNumber) && normalizedNumber.length == 17
+        get() = validVinRegex.matches(normalizedNumber) && normalizedNumber.length == 17 && (if (region == "EU") true else calculatedChecksum == checksum)
 
     /**
      * Validates the VIN against the NHTSA USA database.
@@ -67,6 +68,58 @@ data class VinInfo(
     val year: Int
         get() = years[yearCharacter] ?: throw InvalidVinYearException(yearCharacter)
 
+
+    /**
+     * Calculates the check digit for the VIN.
+     *
+     * This property computes the check digit based on the provided VIN number using the specified algorithm.
+     */
+    val calculatedChecksum: Char
+        get() {
+            // todo: check of UK, as it does not apply to UK
+            val map = "0123456789X"
+            val weights = "8765432X098765432"
+
+            val sum = normalizedNumber.indices.sumOf { index ->
+                transliterate(normalizedNumber[index]) * map.indexOf(weights[index])
+            }
+
+            return map[sum % 11]
+        }
+
+    /**
+     * Transliterates a character to a numeric value.
+     *
+     * This function maps a character to its corresponding numeric value based on a predefined mapping.
+     *
+     * @param char The character to be transliterated.
+     * @return The numeric value corresponding to the character.
+     */
+    private fun transliterate(char: Char): Int {
+        val map = "0123456789.ABCDEFGH..JKLMN.P.R..STUVWXYZ"
+        return map.indexOf(char) % 10
+    }
+
+
+    private val regionMap = mapOf(
+        "AF" to "Africa",
+        "AS" to "Asia",
+        "EU" to "Europe",
+        "NA" to "North America",
+        "OC" to "Oceania",
+        "SA" to "South America"
+    )
+
+    /**
+     * The region name associated with the VIN.
+     *
+     * This property retrieves the region name based on the calculated region code.
+     *
+     * @throws IllegalArgumentException If the region code is invalid or not found in the region map.
+     */
+    val region: String
+        get() = regionMap[regionCode] ?: throw IllegalArgumentException("Wrong region code.")
+
     /**
      * The region code associated with the VIN.
      *
@@ -75,7 +128,7 @@ data class VinInfo(
      * @throws InvalidVinLengthException If the VIN is too short.
      * @throws InvalidVinRegionCharException If the first character is not a valid region code.
      */
-    val region: String
+    val regionCode: String
         get() {
             val regionId =
                 normalizedNumber.getOrNull(0)?.toString() ?: throw InvalidVinLengthException(
@@ -133,7 +186,7 @@ data class VinInfo(
      * @throws NoChecksumForEuException If the region is EU, which doesn't have a checksum character.
      */
     val checksum: Char
-        get() = if (region != "EU") normalizedNumber[8] else throw NoChecksumForEuException()
+        get() = if (regionCode != "EU") normalizedNumber[8] else throw NoChecksumForEuException()
 
     /**
      * The assembly plant code character.

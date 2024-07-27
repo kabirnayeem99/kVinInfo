@@ -79,14 +79,14 @@ class VinInfoTest {
     @Test
     fun `VIN region should be NA North America`() {
         vinInfo = VinInfo.fromNumber(VALID_VIN)
-        assertEquals("NA", vinInfo.region)
+        assertEquals("NA", vinInfo.regionCode)
     }
 
     @Test
     fun `VIN region should throw InvalidVinLengthException with empty VIN if asked for region`() {
         vinInfo = VinInfo.fromNumber("")
         assertFailsWith(InvalidVinLengthException::class) {
-            vinInfo.region
+            vinInfo.regionCode
         }
     }
 
