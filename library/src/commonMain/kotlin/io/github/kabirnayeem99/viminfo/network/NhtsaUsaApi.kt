@@ -16,6 +16,13 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
+/**
+ * Provides access to the NHTSA USA API for VIN-related data.
+ *
+ * This class encapsulates interactions with the NHTSA USA API, allowing retrieval of vehicle information based on a given VIN number.
+ *
+ * @param vinNumber The VIN number to be used for API queries.
+ */
 internal class NhtsaUsaApi(private val vinNumber: String) : AutoCloseable {
 
     private val baseUrl by lazy {
