@@ -11,30 +11,15 @@ import io.github.kabirnayeem99.viminfo.exceptions.NoChecksumForEuException
 import io.github.kabirnayeem99.viminfo.exceptions.NhtsaDatabaseFailedException
 import io.github.kabirnayeem99.viminfo.exceptions.InvalidWmiForCountryException
 import io.github.kabirnayeem99.viminfo.network.NhtsaUsaApi
+import kotlin.jvm.JvmStatic
 
-data class VinInfo(
-    /**
-     * The original VIN number as provided.
-     */
-    val number: String,
+class VinInfo private constructor(
     /**
      * The normalized VIN number, prepared for processing.
      */
     private val normalizedNumber: String,
-    /**
-     * The World Manufacturer Identifier (WMI) part of the VIN.
-     */
-    val wmi: String,
-    /**
-     * The Vehicle Descriptor Section (VDS) part of the VIN.
-     */
-    val vds: String,
-    /**
-     * The Vehicle Identification Section (VIS) part of the VIN.
-     */
-    val vis: String,
-    val isExtended: Boolean,
-) : AutoCloseable {
+
+    ) : AutoCloseable {
 
     private val nhtsaUsaApi by lazy { NhtsaUsaApi(normalizedNumber) }
 
@@ -45,10 +30,53 @@ data class VinInfo(
      *
      * This property performs a preliminary validation based on the VIN's length, adherence to a basic regular expression pattern, and the calculated check digit matching the VIN's check digit at the ninth position.
      *
-     * It does not guarantee the VIN's overall validity or correctness, as the check digit position might vary for certain VIN standards.
+     * It does not guarantee the VIN's overall validity or correctness, as the check digit position or VIN length might vary for certain VIN standards.
      */
     val isValid: Boolean
         get() = validVinRegex.matches(normalizedNumber) && normalizedNumber.length == 17 && (if (region == "EU" || country == "United Kingdom") true else calculatedChecksum == checksum)
+
+    val vinNumber: String
+        get() = normalizedNumber
+
+    /**
+     * The World Manufacturer Identifier (WMI) part of the VIN.
+     *
+     * Extracts the first three characters of the normalized VIN as the WMI.
+     *
+     * @throws InvalidVinLengthException If the VIN is too short to extract the WMI.
+     */
+    val wmi: String
+        get() = if (normalizedNumber.length >= 3) normalizedNumber.substring(
+            0,
+            3
+        ) else throw InvalidVinLengthException(normalizedNumber)
+
+    /**
+     * The Vehicle Descriptor Section (VDS) part of the VIN.
+     *
+     * Extracts characters 4 to 8 of the normalized VIN as the VDS.
+     *
+     * @throws InvalidVinLengthException If the VIN is too short to extract the VDS.
+     */
+    val vds: String
+        get() = if (normalizedNumber.length >= 9) normalizedNumber.substring(
+            3,
+            9
+        ) else throw InvalidVinLengthException(normalizedNumber)
+
+    /**
+     * The Vehicle Identification Section (VIS) part of the VIN.
+     *
+     * Extracts characters 9 to 16 of the normalized VIN as the VIS.
+     *
+     * @throws InvalidVinLengthException If the VIN is too short to extract the VIS.
+     */
+    val vis: String
+        get() = if (normalizedNumber.length >= 17) normalizedNumber.substring(
+            9,
+            17
+        ) else throw InvalidVinLengthException(normalizedNumber)
+
 
     /**
      * Validates the VIN against the NHTSA USA database.
@@ -297,19 +325,12 @@ data class VinInfo(
          * based on its length. The extracted information is stored in the returned `VinInfo` object.
          *
          * @param number The VIN number as a string.
-         * @param isExtended Indicates whether the VIN number is extended.
          * @return A `VinInfo` object containing parsed information from the number string.
          */
-        fun fromNumber(number: String, isExtended: Boolean = false): VinInfo {
+        @JvmStatic
+        fun fromNumber(number: String): VinInfo {
             val normalizedNumber = number.normalize()
-            return VinInfo(
-                number = number,
-                isExtended = isExtended,
-                normalizedNumber = normalizedNumber,
-                wmi = if (number.length >= 3) normalizedNumber.substring(0, 3) else "",
-                vds = if (number.length >= 9) normalizedNumber.substring(3, 9) else "",
-                vis = if (number.length >= 17) normalizedNumber.substring(9, 17) else "",
-            )
+            return VinInfo(normalizedNumber = normalizedNumber)
         }
     }
 

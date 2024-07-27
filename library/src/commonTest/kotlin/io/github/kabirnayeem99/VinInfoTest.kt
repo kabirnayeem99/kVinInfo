@@ -11,7 +11,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-private const val VALID_VIN = "1HGCM82635A123456"
+private const val VALID_VIN = "WBA3A5G59DNP26082"
 
 class VinInfoTest {
 
@@ -34,7 +34,7 @@ class VinInfoTest {
 
     @Test
     fun `VIN with less than 17 characters should be invalid`() {
-        vinInfo = VinInfo.fromNumber("1HGCM82635A12345")
+        vinInfo = VinInfo.fromNumber("WBA3A5G59DNP2608")
         assertFalse(
             vinInfo.isValid,
             "1HGCM82635A12345 should be invalid, as the number of characters are less than 17."
@@ -43,7 +43,7 @@ class VinInfoTest {
 
     @Test
     fun `VIN with more than 17 characters should be invalid`() {
-        vinInfo = VinInfo.fromNumber("1HGCM82635A1234567")
+        vinInfo = VinInfo.fromNumber("WBA3A5G59DNP260823")
         assertFalse(
             vinInfo.isValid,
             "1HGCM82635A1234567 should be invalid, as the number of characters are more than 17."
@@ -53,22 +53,22 @@ class VinInfoTest {
 
     @Test
     fun `VIN with invalid characters should be invalid`() {
-        vinInfo = VinInfo.fromNumber("1HGCM82633A!2345&")
+        vinInfo = VinInfo.fromNumber("WBA3A5G59!NP26&82")
         assertFalse(
             vinInfo.isValid,
-            "2345 should be invalid, as it contains invalid characters like ! and &"
+            "WBA3A5G59!NP26&82 should be invalid, as it contains invalid characters like ! and &"
         )
     }
 
     @Test
     fun `VIN should return correct year`() {
         vinInfo = VinInfo.fromNumber(VALID_VIN)
-        assertEquals(2005, vinInfo.year, "The valid year should be 2005.")
+        assertEquals(2013, vinInfo.year, "The valid year should be 2005.")
     }
 
     @Test
     fun `VIN with wrong year should throw invalid year exception`() {
-        vinInfo = VinInfo.fromNumber("1HGCM8263?A123456")
+        vinInfo = VinInfo.fromNumber("WBA3A5G59?NP26082")
         assertFailsWith(
             InvalidVinYearException::class, "This should throw a wrong year exception."
         ) {
@@ -79,7 +79,7 @@ class VinInfoTest {
     @Test
     fun `VIN region should be NA North America`() {
         vinInfo = VinInfo.fromNumber(VALID_VIN)
-        assertEquals("NA", vinInfo.regionCode)
+        assertEquals("EU", vinInfo.regionCode)
     }
 
     @Test

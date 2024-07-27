@@ -158,6 +158,9 @@ internal class NhtsaUsaApi(private val vinNumber: String) : AutoCloseable {
         val errorMessage =
             decodeVinWithApi()?.results?.first { it?.variableId == NhtsaDecodeVinDto.ERROR_TEXT_VARIABLE_ID }?.value
                 ?: ""
+        if (errorMessage == "0 - VIN decoded clean. Check Digit (9th position) is correct") {
+            return Result.success(vinNumber)
+        }
         if (errorMessage.isBlank()) return Result.success(vinNumber)
         return Result.failure(InvalidVinException(errorMessage))
     }
