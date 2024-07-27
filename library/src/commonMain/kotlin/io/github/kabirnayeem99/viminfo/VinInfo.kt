@@ -5,36 +5,76 @@ import io.github.kabirnayeem99.viminfo.data.years
 import io.github.kabirnayeem99.viminfo.exceptions.InvalidVinLengthException
 import io.github.kabirnayeem99.viminfo.exceptions.InvalidVinRegionCharException
 import io.github.kabirnayeem99.viminfo.exceptions.InvalidVinYearException
+import io.github.kabirnayeem99.viminfo.exceptions.InvalidWmiException
+import io.github.kabirnayeem99.viminfo.exceptions.NoChecksumForEuException
+import io.github.kabirnayeem99.viminfo.exceptions.NhtsaDatabaseFailedException
 import io.github.kabirnayeem99.viminfo.network.NhtsaUsaApi
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.launch
 
 data class VinInfo(
+    /**
+     * The original VIN number as provided.
+     */
     val number: String,
+    /**
+     * The normalized VIN number, prepared for processing.
+     */
     private val normalizedNumber: String,
+    /**
+     * The World Manufacturer Identifier (WMI) part of the VIN.
+     */
     val wmi: String,
+    /**
+     * The Vehicle Descriptor Section (VDS) part of the VIN.
+     */
     val vds: String,
+    /**
+     * The Vehicle Identification Section (VIS) part of the VIN.
+     */
     val vis: String,
     val isExtended: Boolean,
-    private var vehicleInfo: Map<String, Any> = emptyMap(),
 ) : AutoCloseable {
 
     private val nhtsaUsaApi by lazy { NhtsaUsaApi(normalizedNumber) }
 
     private val validVinRegex = "^[a-zA-Z0-9]+$".toRegex()
 
+    /**
+     * Indicates whether the VIN passes a basic format check.
+     *
+     * This property performs a preliminary validation based on the VIN's length and adherence to a basic regular expression pattern.
+     * It does not guarantee the VIN's overall validity or correctness.
+     */
     val isValid: Boolean
         get() = validVinRegex.matches(normalizedNumber) && normalizedNumber.length == 17
 
+    /**
+     * Validates the VIN against the NHTSA USA database.
+     *
+     * This function performs a comprehensive check for VIN validity by querying the NHTSA USA API.
+     * It's specifically designed for validating US-based VIN numbers.
+     *
+     * @return A `Result` object indicating success with the VIN number if valid, or failure with an `InvalidVinException` if invalid.
+     */
+    suspend fun isValidByNhtsa() = nhtsaUsaApi.isValidByNhtsa()
 
-    suspend fun deepValidityCheck() = nhtsaUsaApi.isValid()
-
+    /**
+     * The year of the vehicle as an integer.
+     *
+     * This property extracts the year from the VIN's year character and returns it as an integer.
+     *
+     * @throws InvalidVinYearException If the year character is invalid.
+     */
     val year: Int
         get() = years[yearCharacter] ?: throw InvalidVinYearException(yearCharacter)
 
+    /**
+     * The region code associated with the VIN.
+     *
+     * This property extracts the region code from the first character of the normalized VIN.
+     *
+     * @throws InvalidVinLengthException If the VIN is too short.
+     * @throws InvalidVinRegionCharException If the first character is not a valid region code.
+     */
     val region: String
         get() {
             val regionId =
@@ -60,52 +100,140 @@ data class VinInfo(
             }
         }
 
+    /**
+     * The manufacturer of the vehicle.
+     *
+     * This property determines the manufacturer based on the World Manufacturer Identifier (WMI) part of the VIN.
+     * It first checks for a full WMI match, then attempts to find a match based on the first two characters of the WMI.
+     *
+     * @throws InvalidVinLengthException If the VIN is too short to extract the WMI.
+     * @throws InvalidWmiException If the WMI or its shortened version is not found in the manufacturers map.
+     */
     val manufacturer: String
         get() {
             if (wmi.isBlank()) throw InvalidVinLengthException(normalizedNumber)
             return if (manufacturers.containsKey(this.wmi)) {
-                manufacturers[this.wmi]
-                    ?: throw Exception("Unknown World Manufacturer Identifier (WMI): ${this.wmi.uppercase()}")
+                manufacturers[this.wmi] ?: throw InvalidWmiException(wmi)
             } else {
                 val alternativeWmiId = this.wmi.substring(0, 2)
                 if (manufacturers.containsKey(alternativeWmiId)) {
-                    manufacturers[alternativeWmiId]
-                        ?: throw Exception("Unknown World Manufacturer Identifier (WMI): ${alternativeWmiId.uppercase()}")
+                    manufacturers[alternativeWmiId] ?: throw InvalidWmiException(wmi)
                 } else {
-                    throw Exception("Unknown World Manufacturer Identifier (WMI): ${this.wmi.uppercase()}")
+                    throw InvalidWmiException(wmi)
                 }
             }
 
         }
 
+    /**
+     * The checksum character of the VIN.
+     *
+     * This property extracts the checksum character from the ninth position of the normalized VIN for regions other than EU.
+     *
+     * @throws NoChecksumForEuException If the region is EU, which doesn't have a checksum character.
+     */
     val checksum: Char
-        get() = if (region != "EU") normalizedNumber[8] else throw Exception("No CheckSum for the Europe region.")
+        get() = if (region != "EU") normalizedNumber[8] else throw NoChecksumForEuException()
 
+    /**
+     * The assembly plant code character.
+     *
+     * This property extracts the assembly plant code character from the eleventh position of the normalized VIN.
+     *
+     * @throws InvalidVinLengthException If the VIN is too short to extract the assembly plant code character.
+     */
     val assemblyPlant: Char
-        get() = normalizedNumber.getOrNull(10)
-            ?: throw Exception("Wrong VIN Number length: ${normalizedNumber.length}")
+        get() = normalizedNumber.getOrNull(10) ?: throw InvalidVinLengthException(normalizedNumber)
 
+    /**
+     * The serial number part of the VIN.
+     *
+     * This property extracts the last five characters of the normalized VIN as the serial number.
+     */
     val serialNumber: String
         get() = normalizedNumber.substring(12, 17)
 
-    suspend fun getMakeAsync(): String = nhtsaUsaApi.getMakeValue()
+    /**
+     * Retrieves the make of the vehicle from the NHTSA USA API.
+     *
+     * **Note:** This function is optimized for US-based VIN numbers. Results for other regions might be less accurate.
+     *
+     * @return The make of the vehicle.
+     * @throws NhtsaDatabaseFailedException If the decoded value cannot be found.
+     */
+    suspend fun getMakeFromNhtsa(): String = nhtsaUsaApi.getMakeValue()
 
-    suspend fun getModelAsync(): String = nhtsaUsaApi.getModelValue()
+    /**
+     * Retrieves the model of the vehicle from the NHTSA USA API.
+     *
+     * **Note:** This function is optimized for US-based VIN numbers. Results for other regions might be less accurate.
+     *
+     * @return The model of the vehicle.
+     * @throws NhtsaDatabaseFailedException If the decoded value cannot be found.
+     */
+    suspend fun getModelFromNhtsa(): String = nhtsaUsaApi.getModelValue()
 
-    suspend fun getVehicleType(): String = nhtsaUsaApi.getVehicleTypeValue()
+    /**
+     * Retrieves the vehicle type from the NHTSA USA API.
+     *
+     * **Note:** This function is optimized for US-based VIN numbers. Results for other regions might be less accurate.
+     *
+     * @return The vehicle type.
+     * @throws NhtsaDatabaseFailedException If the decoded value cannot be found.
+     */
+    suspend fun getVehicleTypeFromNhtsa(): String = nhtsaUsaApi.getVehicleTypeValue()
 
-    suspend fun getBodyClass(): String = nhtsaUsaApi.getBodyClassValue()
+    /**
+     * Retrieves the body class of the vehicle from the NHTSA USA API.
+     *
+     * **Note:** This function is optimized for US-based VIN numbers. Results for other regions might be less accurate.
+     *
+     * @return The body class of the vehicle.
+     * @throws NhtsaDatabaseFailedException If the decoded value cannot be found.
+     */
+    suspend fun getBodyClassFromNhtsa(): String = nhtsaUsaApi.getBodyClassValue()
 
+
+    /**
+     * The year character of the VIN.
+     *
+     * This property extracts the year character from the tenth position of the normalized VIN.
+     *
+     * @throws InvalidVinLengthException If the VIN is too short to extract the year character.
+     */
     private val yearCharacter: Char
-        get() = normalizedNumber.getOrNull(9) ?: throw Exception("Invalid VIN Length")
+        get() = normalizedNumber.getOrNull(9) ?: throw InvalidVinLengthException(normalizedNumber)
 
 
+    /**
+     * Returns a string representation of the VIN.
+     *
+     * This function concatenates the WMI, VDS, and VIS parts of the VIN to form the complete VIN.
+     */
     override fun toString() = this.wmi + this.vds + this.vis
+
+    /**
+     * Converts the decoded VIN information to a JSON string using the NHTSA USA API.
+     *
+     * @return The decoded VIN information as a JSON string.
+     * @throws NhtsaDatabaseFailedException If an error occurs during serialization.
+     */
+    suspend fun toStringAsJson() = nhtsaUsaApi.toStringAsJson()
 
     companion object {
 
-        private fun String.normalize() = uppercase().replaceAfter("-", "")
+        private fun String.normalize() = uppercase().replace("-", "")
 
+        /**
+         * Creates a `VinInfo` object from a given number string.
+         *
+         * This function parses the provided number string and extracts relevant information
+         * based on its length. The extracted information is stored in the returned `VinInfo` object.
+         *
+         * @param number The VIN number as a string.
+         * @param isExtended Indicates whether the VIN number is extended.
+         * @return A `VinInfo` object containing parsed information from the number string.
+         */
         fun fromNumber(number: String, isExtended: Boolean = false): VinInfo {
             val normalizedNumber = number.normalize()
             return VinInfo(
@@ -119,7 +247,13 @@ data class VinInfo(
         }
     }
 
+
+    /**
+     * Closes the current instance of the class.
+     *
+     * This function releases any resources held by the object, such as network connections.
+     */
     override fun close() {
-        nhtsaUsaApi.dispose()
+        nhtsaUsaApi.close()
     }
 }

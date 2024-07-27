@@ -1,6 +1,6 @@
 package io.github.kabirnayeem99.viminfo.data
 
-val manufacturers = mapOf(
+internal val manufacturers = mapOf(
     "AAV" to "Volkswagen",
     "AC5" to "Hyundai",
     "ADD" to "Hyundai",
