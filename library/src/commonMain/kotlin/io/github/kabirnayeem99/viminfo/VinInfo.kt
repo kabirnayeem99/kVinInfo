@@ -359,10 +359,12 @@ class VinInfo private constructor(private val normalizedNumber: String) : AutoCl
          * ```kotlin
          * val vin = "WBA3A5G59DNP26082"
          * val vinInfo = VinInfo.fromNumber(vin)
-         * "WBA3A5G59DNP26082".extractVinInfo {
+         * "WBA3A5G59DNP26082".withVinInfo {
          *     println(year)  // 2013
          *     println(region)  // Europe
-         *     println(getMakeFromNhtsa())  // BMW S24
+         *     println(manufacturer)  // BMW AG
+         *     println(getMakeFromNhtsa())  // BMW
+         *     println(getModelFromNhtsa())  // 328i
          * }
          * ```
          *
@@ -371,7 +373,7 @@ class VinInfo private constructor(private val normalizedNumber: String) : AutoCl
          *             This lambda can be used to access and manipulate the extracted VIN information.
          * @throws InvalidVinLengthException if the VIN number is Blank
          */
-        fun String.extractVinInfo(info: VinInfo.() -> Unit) =
+        fun String.withVinInfo(info: VinInfo.() -> Unit) =
             fromNumber(this).use { vinInfo -> vinInfo.info() }
 
     }
