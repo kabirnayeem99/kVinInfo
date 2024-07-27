@@ -3,7 +3,7 @@
 kVinInfo is a pure Kotlin library designed for Vehicle Identification Number (VIN) related tasks. It
 provides functionalities for VIN validation, information extraction, random VIN generation, and
 more. This library is heavily inspired from a python library
-named [viminfo](https://github.com/idlesign/vininfo)
+named [vin-decoder-dart](https://github.com/adaptant-labs/vin-decoder-dart)
 by [Igor Starikov](https://github.com/idlesign).
 
 ## Description
