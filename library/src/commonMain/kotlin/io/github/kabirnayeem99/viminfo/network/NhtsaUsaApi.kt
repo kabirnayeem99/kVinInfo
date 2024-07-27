@@ -1,6 +1,7 @@
 package io.github.kabirnayeem99.viminfo.network
 
 import io.github.kabirnayeem99.viminfo.exceptions.InvalidVinException
+import io.github.kabirnayeem99.viminfo.exceptions.NhtsaDatabaseAlreadyClosedException
 import io.github.kabirnayeem99.viminfo.exceptions.NhtsaDatabaseFailedException
 import io.github.kabirnayeem99.viminfo.network.dto.NhtsaDecodeVinDto
 import io.ktor.client.HttpClient
@@ -17,6 +18,8 @@ internal class NhtsaUsaApi(private val vinNumber: String) : AutoCloseable {
     private val baseUrl by lazy {
         "https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVin/$vinNumber?format=json"
     }
+
+    private var isClosed: Boolean = false
 
     private val httpClient = HttpClient {
         install(ContentNegotiation) {
@@ -41,7 +44,10 @@ internal class NhtsaUsaApi(private val vinNumber: String) : AutoCloseable {
      * @return A `NhtsaDecodeVinDto` object containing the decoded VIN information, or `null` if an error occurs.
      */
     private suspend fun decodeVinWithApi(): NhtsaDecodeVinDto? {
+        if (isClosed) throw NhtsaDatabaseAlreadyClosedException()
+
         try {
+
             if (cachedApiResponse != null) return cachedApiResponse
 
             decodedValueMap.clear()
@@ -173,7 +179,9 @@ internal class NhtsaUsaApi(private val vinNumber: String) : AutoCloseable {
      * It clears the cached API response and closes the underlying HTTP client.
      */
     override fun close() {
+        isClosed = true
         cachedApiResponse = null
+        decodedValueMap.clear()
         httpClient.close()
     }
 
