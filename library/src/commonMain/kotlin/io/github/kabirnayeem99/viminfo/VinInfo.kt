@@ -48,7 +48,7 @@ data class VinInfo(
      * It does not guarantee the VIN's overall validity or correctness, as the check digit position might vary for certain VIN standards.
      */
     val isValid: Boolean
-        get() = validVinRegex.matches(normalizedNumber) && normalizedNumber.length == 17 && (if (region == "EU") true else calculatedChecksum == checksum)
+        get() = validVinRegex.matches(normalizedNumber) && normalizedNumber.length == 17 && (if (region == "EU" || country == "United Kingdom") true else calculatedChecksum == checksum)
 
     /**
      * Validates the VIN against the NHTSA USA database.
