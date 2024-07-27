@@ -1,4 +1,4 @@
-package io.github.kabirnayeem99.viminfo
+package io.github.kabirnayeem99
 
 import io.github.kabirnayeem99.viminfo.entities.Vin
 import io.github.kabirnayeem99.viminfo.exceptions.InvalidVinLengthException
@@ -15,7 +15,7 @@ private const val VALID_VIN = "1HGCM82635A123456"
 
 class VinInfoTest {
 
-    lateinit var vin: Vin
+    private lateinit var vin: Vin
 
     @BeforeTest
     fun setUp() {
@@ -76,7 +76,7 @@ class VinInfoTest {
     }
 
     @Test
-    fun `VIN region should be NA (North America)`() {
+    fun `VIN region should be NA North America`() {
         vin = Vin.fromNumber(VALID_VIN)
         assertEquals("NA", vin.region)
     }

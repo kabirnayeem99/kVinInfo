@@ -5,7 +5,3 @@ class VinInfo {
         return true
     }
 }
-
-fun main() {
-    println(VinInfo().someLibraryMethod())
-}
