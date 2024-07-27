@@ -26,7 +26,7 @@ import kotlin.jvm.JvmStatic
  * ```kotlin
  * val vin = "WBA3A5G59DNP26082"
  * val vinInfo = VinInfo.fromNumber(vin)
- * println(vinInfo.year)
+ * vinInfo.use { vi -> println(vi.year) } // 2013
  * ```
  * A VIN (Vehicle Identification Number) is a unique 17-character code assigned to every individual motor vehicle. It's like a fingerprint for a car, ensuring no two vehicles have the same identifier.
  *
@@ -34,13 +34,7 @@ import kotlin.jvm.JvmStatic
  *
  * **Note:** This class is designed for basic VIN processing and validation. For more complex VIN-related operations, consider using specialized libraries or databases.
  */
-class VinInfo private constructor(
-    /**
-     * The normalized VIN number, prepared for processing.
-     */
-    private val normalizedNumber: String,
-
-    ) : AutoCloseable {
+class VinInfo private constructor(private val normalizedNumber: String) : AutoCloseable {
 
     private val nhtsaUsaApi by lazy { NhtsaUsaApi(normalizedNumber) }
 
@@ -124,7 +118,6 @@ class VinInfo private constructor(
      */
     val calculatedChecksum: Char
         get() {
-            // todo: check of UK, as it does not apply to UK
             val map = "0123456789X"
             val weights = "8765432X098765432"
 
