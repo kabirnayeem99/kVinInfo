@@ -10,6 +10,9 @@ import io.ktor.client.plugins.cache.HttpCache
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.get
 import io.ktor.serialization.kotlinx.json.json
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
@@ -44,30 +47,32 @@ internal class NhtsaUsaApi(private val vinNumber: String) : AutoCloseable {
      * @return A `NhtsaDecodeVinDto` object containing the decoded VIN information, or `null` if an error occurs.
      */
     private suspend fun decodeVinWithApi(): NhtsaDecodeVinDto? {
-        if (isClosed) throw NhtsaDatabaseAlreadyClosedException()
+        return withContext(Dispatchers.IO) {
+            if (isClosed) throw NhtsaDatabaseAlreadyClosedException()
 
-        try {
+            try {
 
-            if (cachedApiResponse != null) return cachedApiResponse
+                if (cachedApiResponse != null) return@withContext cachedApiResponse
 
-            decodedValueMap.clear()
-            cachedApiResponse = httpClient.get(baseUrl).body<NhtsaDecodeVinDto>()
-            val decodedValueList =
-                cachedApiResponse?.results?.filterNotNull()?.filterNot { it.variableId != null }
-                    ?: emptyList()
-            if (decodedValueList.isNotEmpty()) {
-                decodedValueList.forEach { decodedValue ->
-                    val variableId = decodedValue.variableId
-                    val variable = decodedValue.variable ?: ""
-                    if (variableId != null && variable.isNotBlank()) {
-                        decodedValueMap[variableId] = variable
+                decodedValueMap.clear()
+                cachedApiResponse = httpClient.get(baseUrl).body<NhtsaDecodeVinDto>()
+                val decodedValueList =
+                    cachedApiResponse?.results?.filterNotNull()?.filterNot { it.variableId != null }
+                        ?: emptyList()
+                if (decodedValueList.isNotEmpty()) {
+                    decodedValueList.forEach { decodedValue ->
+                        val variableId = decodedValue.variableId
+                        val variable = decodedValue.variable ?: ""
+                        if (variableId != null && variable.isNotBlank()) {
+                            decodedValueMap[variableId] = variable
+                        }
                     }
                 }
+                cachedApiResponse
+            } catch (e: Exception) {
+                e.printStackTrace()
+                null
             }
-            return cachedApiResponse
-        } catch (e: Exception) {
-            e.printStackTrace()
-            return null
         }
     }
 
@@ -127,14 +132,16 @@ internal class NhtsaUsaApi(private val vinNumber: String) : AutoCloseable {
      * @throws NhtsaDatabaseFailedException If the decoded VIN information cannot be retrieved.
      */
     private suspend fun getInfoAsMap(): Map<String, String> {
-        return decodeVinWithApi()?.results?.filterNotNull()?.filter { it.variableId != null }
-            ?.mapNotNull { value ->
-                value.value?.takeIf { it.isNotBlank() }?.let { nonBlankValue ->
-                    value.variable?.takeIf { it.isNotBlank() }?.let { nonBlankVariable ->
-                        nonBlankVariable to nonBlankValue
+        return withContext(Dispatchers.IO) {
+            decodeVinWithApi()?.results?.filterNotNull()?.filter { it.variableId != null }
+                ?.mapNotNull { value ->
+                    value.value?.takeIf { it.isNotBlank() }?.let { nonBlankValue ->
+                        value.variable?.takeIf { it.isNotBlank() }?.let { nonBlankVariable ->
+                            nonBlankVariable to nonBlankValue
+                        }
                     }
-                }
-            }?.toMap() ?: throw NhtsaDatabaseFailedException()
+                }?.toMap() ?: throw NhtsaDatabaseFailedException()
+        }
     }
 
     /**
@@ -145,11 +152,15 @@ internal class NhtsaUsaApi(private val vinNumber: String) : AutoCloseable {
      * @return The decoded VIN information as a JSON string.
      * @throws NhtsaDatabaseFailedException If an error occurs during serialization.
      */
-    suspend fun toStringAsJson() = try {
-        Json.encodeToString(getInfoAsMap())
-    } catch (e: Exception) {
-        e.printStackTrace()
-        throw NhtsaDatabaseFailedException(e.message)
+    suspend fun toStringAsJson(): String {
+        return withContext(Dispatchers.IO) {
+            try {
+                Json.encodeToString(getInfoAsMap())
+            } catch (e: Exception) {
+                e.printStackTrace()
+                throw NhtsaDatabaseFailedException(e.message)
+            }
+        }
     }
 
 
