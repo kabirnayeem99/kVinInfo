@@ -23,6 +23,20 @@ val vinInfo = VinInfo.fromNumber(vin)
 vinInfo.use { println(it.year) } // 2013
 ```
 
+Or do it in more **Kotlin** way:
+
+```kotlin
+val vin = "WBA3A5G59DNP26082"
+val vinInfo = VinInfo.fromNumber(vin)
+"WBA3A5G59DNP26082".withVinInfo {
+    println(year)  // 2013
+    println(region)  // Europe
+    println(manufacturer)  // BMW AG
+    println(getMakeFromNhtsa())  // BMW
+    println(getModelFromNhtsa())  // 328i
+}
+```
+
 ## Key Features
 
 - **Pure Kotlin**: Seamless integration with Kotlin projects, including Android and Kotlin
