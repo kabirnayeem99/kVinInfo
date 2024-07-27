@@ -24,7 +24,7 @@ class VinInfoTest {
 
     @AfterTest
     fun tearDown() {
-        vinInfo = VinInfo.fromNumber("")
+        vinInfo.close()
     }
 
     @Test
@@ -55,7 +55,8 @@ class VinInfoTest {
     fun `VIN with invalid characters should be invalid`() {
         vinInfo = VinInfo.fromNumber("1HGCM82633A!2345&")
         assertFalse(
-            vinInfo.isValid, "2345 should be invalid, as it contains invalid characters like ! and &"
+            vinInfo.isValid,
+            "2345 should be invalid, as it contains invalid characters like ! and &"
         )
     }
 
