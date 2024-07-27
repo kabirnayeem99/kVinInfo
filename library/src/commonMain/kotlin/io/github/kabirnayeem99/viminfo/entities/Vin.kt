@@ -5,6 +5,7 @@ import io.github.kabirnayeem99.viminfo.data.years
 import io.github.kabirnayeem99.viminfo.exceptions.InvalidVinLengthException
 import io.github.kabirnayeem99.viminfo.exceptions.InvalidVinRegionCharException
 import io.github.kabirnayeem99.viminfo.exceptions.InvalidVinYearException
+import io.github.kabirnayeem99.viminfo.network.NhtsaUsaApi
 
 data class Vin(
     val number: String,
@@ -16,11 +17,15 @@ data class Vin(
     private var vehicleInfo: Map<String, Any> = emptyMap(),
 ) {
 
+    private val nhtsaUsaApi by lazy { NhtsaUsaApi(normalizedNumber) }
+
     private val validVinRegex = "^[a-zA-Z0-9]+$".toRegex()
 
     val isValid: Boolean
         get() = validVinRegex.matches(normalizedNumber) && normalizedNumber.length == 17
 
+
+    suspend fun deepValidityCheck() = nhtsaUsaApi.isValid()
 
     val year: Int
         get() = years[yearCharacter] ?: throw InvalidVinYearException(yearCharacter)
