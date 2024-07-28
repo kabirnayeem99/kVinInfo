@@ -39,16 +39,16 @@ Use the following dependency in your app module's build.gradle file:
 #### Kotlin DSL (`build.gradle.kts`)
 
 ```kotlin
-   dependencies {
-    // all other dependencies
-    implementation("io.github.kabirnayeem99:kvininfo:1.0.0")
+dependencies {
+  // all other dependencies
+  implementation("io.github.kabirnayeem99:kvininfo:1.0.0")
 }
 ```
 
 #### Groovy DSL (`build.gradle`)
 
 ```groovy
-   dependencies {
+dependencies {
     // all other dependencies
     implementation "io.github.kabirnayeem99:kvininfo:1.0.0"
 }
