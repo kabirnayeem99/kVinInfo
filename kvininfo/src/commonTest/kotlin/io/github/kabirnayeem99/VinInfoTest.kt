@@ -3,6 +3,7 @@ package io.github.kabirnayeem99
 import io.github.kabirnayeem99.viminfo.VinInfo
 import io.github.kabirnayeem99.viminfo.exceptions.InvalidVinLengthException
 import io.github.kabirnayeem99.viminfo.exceptions.InvalidVinYearException
+import kotlinx.coroutines.runBlocking
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -90,8 +91,14 @@ class VinInfoTest {
         }
     }
 
+
     @Test
-    fun `VIN region should throw InvalidVinRegionCharException`() {
+    fun `VIN data returned from NHTSA should be correct`() {
+        runBlocking {
+            vinInfo = VinInfo.fromNumber(VALID_VIN)
+            assertEquals(vinInfo.getMakeFromNhtsa(), "BMW")
+        }
     }
+
 
 }

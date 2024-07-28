@@ -48,7 +48,7 @@ class VinInfo private constructor(private val normalizedNumber: String) : AutoCl
      * It does not guarantee the VIN's overall validity or correctness, as the check digit position or VIN length might vary for certain VIN standards.
      */
     val isValid: Boolean
-        get() = validVinRegex.matches(normalizedNumber) && normalizedNumber.length == 17 && (if (region == "EU" || country == "United Kingdom") true else calculatedChecksum == checksum)
+        get() = validVinRegex.matches(normalizedNumber) && normalizedNumber.length == 17 && (if (regionCode == "EU" || country == "United Kingdom") true else calculatedChecksum == checksum)
 
     val vinNumber: String
         get() = normalizedNumber

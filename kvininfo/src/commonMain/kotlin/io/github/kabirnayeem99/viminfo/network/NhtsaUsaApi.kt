@@ -41,7 +41,7 @@ internal class NhtsaUsaApi(private val vinNumber: String) : AutoCloseable {
         install(HttpCache)
     }
 
-    private var decodedValueMap = mutableMapOf<Long, String>()
+    private var decodedValueMap = mapOf<Long, String>()
 
     private var cachedApiResponse: NhtsaDecodeVinDto? = null
 
@@ -55,26 +55,25 @@ internal class NhtsaUsaApi(private val vinNumber: String) : AutoCloseable {
      */
     private suspend fun decodeVinWithApi(): NhtsaDecodeVinDto? {
         return withContext(Dispatchers.IO) {
-            if (isClosed) throw NhtsaDatabaseAlreadyClosedException()
 
             try {
 
                 if (cachedApiResponse != null) return@withContext cachedApiResponse
 
-                decodedValueMap.clear()
+
+                if (isClosed) throw NhtsaDatabaseAlreadyClosedException()
                 cachedApiResponse = httpClient.get(baseUrl).body<NhtsaDecodeVinDto>()
-                val decodedValueList =
-                    cachedApiResponse?.results?.filterNotNull()?.filterNot { it.variableId != null }
-                        ?: emptyList()
-                if (decodedValueList.isNotEmpty()) {
-                    decodedValueList.forEach { decodedValue ->
-                        val variableId = decodedValue.variableId
-                        val variable = decodedValue.variable ?: ""
-                        if (variableId != null && variable.isNotBlank()) {
-                            decodedValueMap[variableId] = variable
+                decodedValueMap = cachedApiResponse?.results?.filterNotNull()
+                    ?.filter { r -> r.variableId != null && !r.value.isNullOrBlank() }
+                    ?.mapNotNull { r ->
+                        r.value?.takeIf { v -> v.isNotBlank() }?.let { v ->
+                            r.variableId?.takeIf { vi -> vi > 0 }?.let { vi ->
+                                vi to v
+                            }
                         }
-                    }
-                }
+                    }?.toMap() ?: emptyMap()
+
+                println(decodedValueMap)
                 cachedApiResponse
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -200,7 +199,6 @@ internal class NhtsaUsaApi(private val vinNumber: String) : AutoCloseable {
         try {
             isClosed = true
             cachedApiResponse = null
-            decodedValueMap.clear()
             httpClient.close()
         } catch (e: Exception) {
             e.printStackTrace()
