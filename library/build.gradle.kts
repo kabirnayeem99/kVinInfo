@@ -6,6 +6,7 @@ plugins {
     alias(libs.plugins.androidLibrary)
     alias(libs.plugins.kotlinxSerialization)
     id("module.publication")
+    alias(libs.plugins.vanniktechMavenPublish)
 }
 
 kotlin {
