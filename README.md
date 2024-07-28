@@ -3,42 +3,40 @@
 License: [MIT License](LICENSE)
 
 kVINInfo is a pure Kotlin library designed to simplify tasks related to Vehicle Identification
-Numbers (VINs). It offers a comprehensive suite of functionalities, including:
+Numbers (VINs), including simple VIN Validation, extracting information from VIN, NHTSA Database
+integration to get information like Vehicle type, Make and Model.
 
-- **VIN Validation**: Ensures the provided VIN adheres to the correct format and checksum.
-- **Information Extraction**: Extracts valuable details from the VIN, such as manufacturer, model
-  year, and region of origin.
-- **Random VIN Generation**: Generates random or mocked VIN numbers for testing or educational
-  purposes.
-- **NHTSA Integration**: You can use NHTSA data which internally uses their API to get more detailed
-  information. For more note about available data head over to their documentation.
-
-**Inspiration**: This library draws inspiration from the Dart
+Please, note that, This library draws inspiration from the Dart
 library [vin-decoder-dart](https://github.com/adaptant-labs/vin-decoder-dart)
 by [Adaptant Labs](https://github.com/adaptant-labs)
 and [vindecoder.js](https://gist.github.com/kevboutin/3ac029e336fc7cafd20c05adda42ffa5)
-by [Kevin Boutin](https://gist.github.com/kevboutin).
+by [Kevin Boutin](https://gist.github.com/kevboutin), so big shout out to them.
 
-**Note**: For more complex VIN processing, professional-grade validation, or in-depth information
-extraction, consider implementing custom logic or integrating with country-specific databases or
-APIs.
+**Warning**: For more complex VIN processing, professional-grade validation, or in-depth information
+extraction, consider implementing custom logic or integrating with your company specific business
+logic, or country-specific databases or APIs.
 
-# Install
+## Install
 
-To install this library in your Kotlin Multiplatform Application:
+This library can be installed with ease for both Kotlin Multiplatform projects and Android projects.
+
+### Kotlin Multiplatform Projects
+
+Add the following dependency to your commonMain source set:
 
 ```kotlin
 val commonMain by getting {
     dependencies {
-        // all other dependencies
         implementation("io.github.kabirnayeem99:kvininfo:1.0.0")
     }
 }
 ```
 
-To Install on Android project:
+### Android Projects
 
-For Kotlin DSL:
+Use the following dependency in your app module's build.gradle file:
+
+#### Kotlin DSL (`build.gradle.kts`)
 
 ```kotlin
    dependencies {
@@ -47,7 +45,7 @@ For Kotlin DSL:
 }
 ```
 
-For Groovy DSL:
+#### Groovy DSL (`build.gradle`)
 
 ```groovy
    dependencies {
@@ -56,47 +54,46 @@ For Groovy DSL:
 }
 ```
 
-# Usage
+Note: Replace `1.0.0` with the latest version of the library.
+
+## Usage
+
+This library offers a simple API for working with VINs.
 
 ```kotlin
 val vin = "WBA3A5G59DNP26082"
 val vinInfo = VinInfo.fromNumber(vin)
-vinInfo.use { println(it.year) } // 2013
-```
 
-Or do it in more **Kotlin** way:
+// Access VIN information
+println(vinInfo.year) // 2013
+println(vinInfo.region) // Europe
+println(vinInfo.manufacturer) // BMW AG
 
-```kotlin
-val vin = "WBA3A5G59DNP26082"
-val vinInfo = VinInfo.fromNumber(vin)
-"WBA3A5G59DNP26082".withVinInfo {
-    println(year)  // 2013
-    println(region)  // Europe
-    println(manufacturer)  // BMW AG
-    println(getMakeFromNhtsa())  // BMW
-    println(getModelFromNhtsa())  // 328i
+// Using the `use` scope for resource management
+vinInfo.use {
+    println(it.wmi) // WMI part of the VIN
+    // ... other operations
 }
 ```
 
-## Key Features
+For more concise and expressive code, leverage Kotlin's extension functions:
 
-- **Pure Kotlin**: Seamless integration with Kotlin projects, including Android and Kotlin
-  Multiplatform (KMP) environments.
-- **Detailed Information Extraction**: Uncovers a wide range of information from the VIN, depending
-  on availability.
-- **Checksum Verification**: Guarantees the validity of the VIN by verifying the checksum.
-- **Random VIN Generation**: Creates random or mocked VINs for various use cases.
+```kotlin
+"WBA3A5G59DNP26082".withVinInfo {
+    println(year) // 2013
+    println(region) // Europe
+    println(manufacturer) // BMW AG
+    println(getMakeFromNhtsa())  // BMW
+    println(getModelFromNhtsa())  // 328i
+    // ... other operations
+}
+```
 
-## Limitations
+**Explanation**:
 
-- **Basic Validation**: The library offers basic VIN format checks but might not cover all
-  validation
-  scenarios.
-- **Limited Information Extraction**: In-depth VIN decoding and data enrichment might require
-  additional
-  logic or external data sources.
-- **NHTSA API Usage (Optional)**: The getMakeFromNhtsa and getModelFromNhtsa methods rely on the
-  NHTSA API, which works best only on USA, in other regions, it may not give valid results.
+- The withVinInfo extension function provides a fluent-style API for working with VIN data.
+- The lambda passed to withVinInfo receives the VinInfo instance as its receiver, allowing direct
+  access to its properties.
 
 ## Contributions
 
