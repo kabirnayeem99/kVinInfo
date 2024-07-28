@@ -189,3 +189,4 @@ render.experimental.xml
 replay_pid*
 timeline.xctimeline
 xcuserdata/
+gradle.properties
