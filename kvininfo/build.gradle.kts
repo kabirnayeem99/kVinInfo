@@ -1,11 +1,12 @@
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import com.vanniktech.maven.publish.SonatypeHost
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.androidLibrary)
     alias(libs.plugins.kotlinxSerialization)
-    id("module.publication")
+//    id("module.publication")
     alias(libs.plugins.vanniktechMavenPublish)
 }
 
@@ -13,7 +14,8 @@ kotlin {
     jvm()
     androidTarget {
         publishLibraryVariants("release")
-        @OptIn(ExperimentalKotlinGradlePluginApi::class) compilerOptions {
+        @OptIn(ExperimentalKotlinGradlePluginApi::class)
+        compilerOptions {
             jvmTarget.set(JvmTarget.JVM_1_8)
         }
     }
@@ -22,6 +24,16 @@ kotlin {
     iosSimulatorArm64()
     linuxX64()
 
+    listOf(
+        iosX64(),
+        iosArm64(),
+        iosSimulatorArm64()
+    ).forEach {
+        it.binaries.framework {
+            baseName = "kvininfo"
+            isStatic = true
+        }
+    }
 //    listOf(
 //        iosX64(), iosArm64(), iosSimulatorArm64()
 //    ).forEach {
@@ -74,9 +86,56 @@ kotlin {
 }
 
 android {
-    namespace = "org.jetbrains.kotlinx.multiplatform.library.template"
+    namespace = "io.github.kabirnayeem99.kvininfo"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
     defaultConfig {
         minSdk = libs.versions.android.minSdk.get().toInt()
     }
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
+    }
 }
+
+mavenPublishing {
+    // Define coordinates for the published artifact
+    coordinates(
+        groupId = "io.github.kabirnayeem99", artifactId = "kvininfo", version = "1.0.0"
+    )
+
+    // Configure POM metadata for the published artifact
+    pom {
+        name.set("KVinInfo")
+        description.set("Pure Kotlin Library for extracting info from VIN, validating VIN, and generating random/mocked VIN for testing.")
+        inceptionYear.set("2024")
+        url.set("https://github.com/kabirnayeem99/kVinInfo")
+
+        licenses {
+            license {
+                name.set("MIT")
+                url.set("https://opensource.org/licenses/MIT")
+            }
+        }
+
+        // Specify developers information
+        developers {
+            developer {
+                id.set("kabirnayeem99")
+                name.set("Naimul Kabir")
+                email.set("kabirnayeem.99@gmail.com")
+            }
+        }
+
+        // Specify SCM information
+        scm {
+            url.set("https://github.com/kabirnayeem99/kVinInfo")
+        }
+    }
+
+    // Configure publishing to Maven Central
+    publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)
+
+    // Enable GPG signing for all publications
+    signAllPublications()
+}
+

@@ -15,4 +15,4 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "kvininfo"
-include(":library")
+include(":kvininfo")
