@@ -92,10 +92,11 @@ internal class NhtsaUsaApi(private val vinNumber: String) : AutoCloseable {
      * @return The decoded value for the given variable ID.
      * @throws NhtsaDatabaseFailedException If the decoded value cannot be found.
      */
-    private suspend fun getDecodedValue(variableId: Long): String {
-        decodeVinWithApi()
-        return decodedValueMap[variableId] ?: throw NhtsaDatabaseFailedException()
-    }
+    private suspend fun resolveDecodedValue(variableId: Long): String =
+        decodedValueMap.takeIf { dvm -> dvm.isNotEmpty() }?.get(variableId) ?: run {
+            decodeVinWithApi()
+            decodedValueMap[variableId] ?: throw NhtsaDatabaseFailedException()
+        }
 
     /**
      * Retrieves the make value from the decoded VIN information.
@@ -103,7 +104,7 @@ internal class NhtsaUsaApi(private val vinNumber: String) : AutoCloseable {
      * @return The make value.
      * @throws NhtsaDatabaseFailedException If the make value cannot be found.
      */
-    suspend fun getMakeValue() = getDecodedValue(NhtsaDecodeVinDto.MAKE_VARIABLE_ID)
+    suspend fun getMakeValue() = resolveDecodedValue(NhtsaDecodeVinDto.MAKE_VARIABLE_ID)
 
     /**
      * Retrieves the model value from the decoded VIN information.
@@ -111,7 +112,7 @@ internal class NhtsaUsaApi(private val vinNumber: String) : AutoCloseable {
      * @return The model value.
      * @throws NhtsaDatabaseFailedException If the model value cannot be found.
      */
-    suspend fun getModelValue() = getDecodedValue(NhtsaDecodeVinDto.MODEL_VARIABLE_ID)
+    suspend fun getModelValue() = resolveDecodedValue(NhtsaDecodeVinDto.MODEL_VARIABLE_ID)
 
     /**
      * Retrieves the vehicle type value from the decoded VIN information.
@@ -119,7 +120,8 @@ internal class NhtsaUsaApi(private val vinNumber: String) : AutoCloseable {
      * @return The vehicle type value.
      * @throws NhtsaDatabaseFailedException If the vehicle type value cannot be found.
      */
-    suspend fun getVehicleTypeValue() = getDecodedValue(NhtsaDecodeVinDto.VEHICLE_TYPE_VARIABLE_ID)
+    suspend fun getVehicleTypeValue() =
+        resolveDecodedValue(NhtsaDecodeVinDto.VEHICLE_TYPE_VARIABLE_ID)
 
     /**
      * Retrieves the body class value from the decoded VIN information.
@@ -127,7 +129,7 @@ internal class NhtsaUsaApi(private val vinNumber: String) : AutoCloseable {
      * @return The body class value.
      * @throws NhtsaDatabaseFailedException If the body class value cannot be found.
      */
-    suspend fun getBodyClassValue() = getDecodedValue(NhtsaDecodeVinDto.BODY_CLASS_VARIABLE_ID)
+    suspend fun getBodyClassValue() = resolveDecodedValue(NhtsaDecodeVinDto.BODY_CLASS_VARIABLE_ID)
 
     /**
      * Retrieves the decoded VIN information as a map.
