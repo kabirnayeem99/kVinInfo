@@ -315,7 +315,7 @@ class VinInfo private constructor(private val normalizedNumber: String) : AutoCl
      *
      * This function concatenates the WMI, VDS, and VIS parts of the VIN to form the complete VIN.
      */
-    override fun toString() = this.wmi + this.vds + this.vis
+    override fun toString() = normalizedNumber
 
     /**
      * Converts the decoded VIN information to a JSON string using the NHTSA USA API.
@@ -323,7 +323,7 @@ class VinInfo private constructor(private val normalizedNumber: String) : AutoCl
      * @return The decoded VIN information as a JSON string.
      * @throws NhtsaDatabaseFailedException If an error occurs during serialization.
      */
-    suspend fun toStringAsJson() = nhtsaUsaApi.toStringAsJson()
+    suspend fun toJsonString() = nhtsaUsaApi.toStringAsJson()
 
     companion object {
 
