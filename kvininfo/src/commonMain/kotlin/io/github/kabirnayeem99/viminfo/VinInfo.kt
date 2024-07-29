@@ -373,8 +373,17 @@ class VinInfo private constructor(private val normalizedNumber: String) : AutoCl
          *             This lambda can be used to access and manipulate the extracted VIN information.
          * @throws InvalidVinLengthException if the VIN number is Blank
          */
-        fun String.withVinInfo(info: VinInfo.() -> Unit) =
-            fromNumber(this).use { vinInfo -> vinInfo.info() }
+        fun String.withVinInfo(info: VinInfo.() -> Unit) {
+            var vinInfo: VinInfo? = null
+            try {
+                vinInfo = fromNumber(this)
+                vinInfo.also { vi -> vi.info() }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                vinInfo?.close()
+            }
+        }
 
     }
 
