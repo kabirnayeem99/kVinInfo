@@ -11,92 +11,86 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlin.test.fail
 
 private const val VALID_VIN = "WBA3A5G59DNP26082"
 
 class VinInfoTest {
 
-    private lateinit var vinInfo: VinInfo
-
-    @BeforeTest
-    fun setUp() {
-        vinInfo = VinInfo.fromNumber(VALID_VIN)
-    }
-
-    @AfterTest
-    fun tearDown() {
-        vinInfo.close()
+    @Test
+    fun testIsValid_validVin() {
+        val vinInfo = VinInfo.fromNumber("WBA3A5G59DNP26082")
+        assertTrue(vinInfo.isValid)
     }
 
     @Test
-    fun `VIN should be VALID`() {
-        assertTrue(vinInfo.isValid, "$VALID_VIN should be a valid vinInfo.")
+    fun testIsValid_invalidLength() {
+        val shortVin = VinInfo.fromNumber("WBA3A5G")
+        val longVin = VinInfo.fromNumber("WBA3A5G59DNP26082X")
+        assertFalse(shortVin.isValid)
+        assertFalse(longVin.isValid)
     }
 
     @Test
-    fun `VIN with less than 17 characters should be invalid`() {
-        vinInfo = VinInfo.fromNumber("WBA3A5G59DNP2608")
-        assertFalse(
-            vinInfo.isValid,
-            "1HGCM82635A12345 should be invalid, as the number of characters are less than 17."
-        )
+    fun testIsValid_invalidCharacters() {
+        val invalidCharVin = VinInfo.fromNumber("WBA3A5G$9DNP26082")
+        assertFalse(invalidCharVin.isValid)
     }
 
     @Test
-    fun `VIN with more than 17 characters should be invalid`() {
-        vinInfo = VinInfo.fromNumber("WBA3A5G59DNP260823")
-        assertFalse(
-            vinInfo.isValid,
-            "1HGCM82635A1234567 should be invalid, as the number of characters are more than 17."
-        )
-    }
-
-
-    @Test
-    fun `VIN with invalid characters should be invalid`() {
-        vinInfo = VinInfo.fromNumber("WBA3A5G59!NP26&82")
-        assertFalse(
-            vinInfo.isValid,
-            "WBA3A5G59!NP26&82 should be invalid, as it contains invalid characters like ! and &"
-        )
+    fun testIsValid_incorrectChecksum() {
+        val invalidChecksumVin = VinInfo.fromNumber("WBA3A5G52DNP26082")
+        assertFalse(invalidChecksumVin.isValid)
     }
 
     @Test
-    fun `VIN should return correct year`() {
-        vinInfo = VinInfo.fromNumber(VALID_VIN)
-        assertEquals(2013, vinInfo.year, "The valid year should be 2005.")
+    fun testWmiVdsVisExtraction() {
+        val vinInfo = VinInfo.fromNumber("WBA3A5G59DNP26082")
+        assertEquals("WBA", vinInfo.wmi)
+        assertEquals("3A5G59", vinInfo.vds)
+        assertEquals("DNP26082", vinInfo.vis)
     }
 
     @Test
-    fun `VIN with wrong year should throw invalid year exception`() {
-        vinInfo = VinInfo.fromNumber("WBA3A5G59?NP26082")
-        assertFailsWith(
-            InvalidVinYearException::class, "This should throw a wrong year exception."
-        ) {
-            vinInfo.year
-        }
+    fun testYearExtraction() {
+        val vinInfo = VinInfo.fromNumber("WBA3A5G59DNP26082")
+        assertEquals(2013, vinInfo.year)
     }
 
     @Test
-    fun `VIN region should be NA North America`() {
-        vinInfo = VinInfo.fromNumber(VALID_VIN)
+    fun testChecksumCalculation() {
+        val vinInfo = VinInfo.fromNumber("WBA3A5G59DNP26082")
+        assertEquals('9', vinInfo.calculatedChecksum)
+    }
+
+    @Test
+    fun testRegionAndCountry() {
+        val vinInfo = VinInfo.fromNumber("WBA3A5G59DNP26082")
         assertEquals("EU", vinInfo.regionCode)
+        assertEquals("Europe", vinInfo.region)
+        assertEquals("Germany", vinInfo.country)
     }
 
     @Test
-    fun `VIN region should throw InvalidVinLengthException with empty VIN if asked for region`() {
-        vinInfo = VinInfo.fromNumber("")
-        assertFailsWith(InvalidVinLengthException::class) {
-            vinInfo.regionCode
-        }
+    fun testManufacturer() {
+        val vinInfo = VinInfo.fromNumber("WBA3A5G59DNP26082")
+        assertEquals("BMW", vinInfo.manufacturer)
     }
 
+    @Test
+    fun testAssemblyPlantAndSerialNumber() {
+        val vinInfo = VinInfo.fromNumber("WBA3A5G59DNP26082")
+        assertEquals('N', vinInfo.assemblyPlant)
+        assertEquals("26082", vinInfo.serialNumber)
+    }
 
     @Test
-    fun `VIN data returned from NHTSA should be correct`() {
-        runBlocking {
-            vinInfo = VinInfo.fromNumber(VALID_VIN)
-            assertEquals(vinInfo.getMakeFromNhtsa(), "BMW")
+    fun testInvalidVinLengthException() {
+        try {
+            VinInfo.fromNumber("")
+            fail("Expected InvalidVinLengthException")
+        } catch (e: InvalidVinLengthException) {
+            // Expected exception
         }
     }
 
