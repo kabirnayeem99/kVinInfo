@@ -1,12 +1,11 @@
+import com.vanniktech.maven.publish.SonatypeHost
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-import com.vanniktech.maven.publish.SonatypeHost
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.androidLibrary)
     alias(libs.plugins.kotlinxSerialization)
-//    id("module.publication")
     alias(libs.plugins.vanniktechMavenPublish)
 }
 
@@ -34,13 +33,6 @@ kotlin {
             isStatic = true
         }
     }
-//    listOf(
-//        iosX64(), iosArm64(), iosSimulatorArm64()
-//    ).forEach {
-//        it.binaries.framework {
-//            baseName = "shared"
-//        }
-//    }
 
     sourceSets {
         val commonMain by getting {
