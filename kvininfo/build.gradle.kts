@@ -95,7 +95,7 @@ android {
 mavenPublishing {
     // Define coordinates for the published artifact
     coordinates(
-        groupId = "io.github.kabirnayeem99", artifactId = "kvininfo", version = "1.0.0"
+        groupId = "io.github.kabirnayeem99", artifactId = "kvininfo", version = "1.0.1"
     )
 
     // Configure POM metadata for the published artifact
