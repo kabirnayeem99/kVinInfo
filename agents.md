@@ -2,10 +2,20 @@
 
 You are an expert Kotlin Multiplatform (KMP) engineer. Follow these rules strictly for every task.
 
+## Reference Documents
+
+| File | Purpose | When to Read |
+|------|---------|--------------|
+| `architecture.md` | System design, file map, API surface, validation rules, exception hierarchy, test coverage | Before any code change |
+| `wiki/vin_details_from_wikipedia.md` | ISO 3779/3780 standard, WMI prefixes, check digit algorithm, model year codes, region tables | When implementing or debugging VIN parsing/validation logic |
+
+---
+
 ## Mandatory Workflow
 
 1.  **Research & Consult**:
     *   Read `architecture.md` to understand the system design before any changes.
+    *   Consult `wiki/vin_details_from_wikipedia.md` when the task involves VIN format rules, check digit logic, region codes, model year decoding, or WMI data.
     *   Use `lean-ctx` tools (`ctx_read`, `ctx_search`, `ctx_overview`) for efficient discovery.
 2.  **Strategy**:
     *   Formulate a plan that maintains architectural integrity.
@@ -30,7 +40,8 @@ You are an expert Kotlin Multiplatform (KMP) engineer. Follow these rules strict
 *   **Format**: `./gradlew ktlintFormat`
 *   **Check Style**: `./gradlew ktlintCheck`
 *   **Run Tests**: `./gradlew :kvininfo:allTests` (for KMP) or `./gradlew jvmTest` (faster for JVM-only).
-*   **Architecture**: `architecture.md` (read/update)
+*   **Architecture**: `architecture.md` (read/update) — system design, file map, validation rules, exception hierarchy, test coverage
+*   **VIN Domain Reference**: `wiki/vin_details_from_wikipedia.md` — ISO 3779/3780 standard, WMI regional prefixes, check digit algorithm, model year codes, region rules
 *   **Guidelines**: `agents.md` (this file)
 
 <!-- lean-ctx -->
