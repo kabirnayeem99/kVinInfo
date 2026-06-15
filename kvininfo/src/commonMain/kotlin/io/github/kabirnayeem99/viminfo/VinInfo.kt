@@ -11,6 +11,7 @@ import io.github.kabirnayeem99.viminfo.decode.VinValidator
 import io.github.kabirnayeem99.viminfo.exceptions.InvalidVinLengthException
 import io.github.kabirnayeem99.viminfo.exceptions.NoChecksumForEuException
 import io.github.kabirnayeem99.viminfo.network.NhtsaUsaApi
+import io.ktor.client.engine.HttpClientEngine
 import kotlin.jvm.JvmStatic
 
 /**
@@ -35,12 +36,15 @@ import kotlin.jvm.JvmStatic
  *
  * **Note:** This class is designed for basic VIN processing and validation. For more complex VIN-related operations, consider using specialized libraries or databases.
  */
-class VinInfo private constructor(private val normalizedNumber: String) : AutoCloseable {
+class VinInfo private constructor(
+    private val normalizedNumber: String,
+    private val nhtsaEngine: HttpClientEngine? = null,
+) : AutoCloseable {
 
     private var _nhtsaUsaApi: NhtsaUsaApi? = null
     private val nhtsaUsaApi: NhtsaUsaApi
         get() {
-            if (_nhtsaUsaApi == null) _nhtsaUsaApi = NhtsaUsaApi(normalizedNumber)
+            if (_nhtsaUsaApi == null) _nhtsaUsaApi = NhtsaUsaApi(normalizedNumber, nhtsaEngine)
             return _nhtsaUsaApi!!
         }
 
@@ -299,6 +303,13 @@ class VinInfo private constructor(private val normalizedNumber: String) : AutoCl
             val error = VinValidator.validate(sanitized)
             if (error != null) return Result.failure(error)
             return Result.success(VinInfo(normalizedNumber = sanitized))
+        }
+
+        internal fun fromNumberWithEngine(number: String, engine: HttpClientEngine): Result<VinInfo> {
+            val sanitized = VinSanitizer.sanitize(number)
+            val error = VinValidator.validate(sanitized)
+            if (error != null) return Result.failure(error)
+            return Result.success(VinInfo(normalizedNumber = sanitized, nhtsaEngine = engine))
         }
 
         /**

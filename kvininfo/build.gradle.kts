@@ -101,6 +101,13 @@ kotlin {
             dependencies {
                 implementation(libs.kotlin.test)
                 implementation(libs.ktor.client.mock)
+                implementation(libs.kotlinx.coroutines.test)
+            }
+        }
+
+        val jvmTest by getting {
+            dependencies {
+                implementation(libs.ktor.client.cio)
             }
         }
 

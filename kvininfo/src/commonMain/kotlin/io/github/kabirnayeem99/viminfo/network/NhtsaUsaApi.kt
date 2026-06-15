@@ -6,6 +6,7 @@ import io.github.kabirnayeem99.viminfo.exceptions.NhtsaDatabaseFailedException
 import io.github.kabirnayeem99.viminfo.network.dto.NhtsaDecodeVinDto
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
+import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.plugins.cache.HttpCache
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.get
@@ -22,9 +23,11 @@ import kotlinx.serialization.json.Json
  * This class encapsulates interactions with the NHTSA USA API, allowing retrieval of vehicle information based on a given VIN number.
  *
  * @param vinNumber The VIN number to be used for API queries.
+ * @param engine Optional HTTP client engine; defaults to the platform engine. Pass a [MockEngine] in tests.
  */
 internal class NhtsaUsaApi(
     private val vinNumber: String,
+    engine: HttpClientEngine? = null,
 ) : AutoCloseable {
     private val baseUrl by lazy {
         "https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVin/$vinNumber?format=json"
@@ -32,18 +35,21 @@ internal class NhtsaUsaApi(
 
     private var isClosed: Boolean = false
 
-    private val httpClient =
-        HttpClient {
+    private val httpClient: HttpClient = if (engine != null) {
+        HttpClient(engine) {
             install(ContentNegotiation) {
-                json(
-                    Json {
-                        ignoreUnknownKeys = true
-                        useAlternativeNames = false
-                    },
-                )
+                json(Json { ignoreUnknownKeys = true; useAlternativeNames = false })
             }
             install(HttpCache)
         }
+    } else {
+        HttpClient {
+            install(ContentNegotiation) {
+                json(Json { ignoreUnknownKeys = true; useAlternativeNames = false })
+            }
+            install(HttpCache)
+        }
+    }
 
     private var decodedValueMap = mapOf<Long, String>()
 
@@ -199,12 +205,8 @@ internal class NhtsaUsaApi(
      * It clears the cached API response and closes the underlying HTTP client.
      */
     override fun close() {
-        try {
-            isClosed = true
-            cachedApiResponse = null
-            httpClient.close()
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+        isClosed = true
+        cachedApiResponse = null
+        httpClient.close()
     }
 }

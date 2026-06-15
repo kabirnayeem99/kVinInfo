@@ -1,13 +1,18 @@
 package io.github.kabirnayeem99
 
 import io.github.kabirnayeem99.viminfo.VinInfo
+import io.github.kabirnayeem99.viminfo.VinInfo.Companion.withVinInfo
+import io.github.kabirnayeem99.viminfo.data.getCountryFromWmi
 import io.github.kabirnayeem99.viminfo.decode.VinChecksum
 import io.github.kabirnayeem99.viminfo.decode.VinRegion
 import io.github.kabirnayeem99.viminfo.exceptions.InvalidVinException
 import io.github.kabirnayeem99.viminfo.exceptions.InvalidVinLengthException
+import io.github.kabirnayeem99.viminfo.exceptions.InvalidWmiForCountryException
+import io.github.kabirnayeem99.viminfo.exceptions.NoChecksumForEuException
 import io.github.kabirnayeem99.viminfo.exceptions.VinChecksumMismatchException
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
@@ -223,6 +228,59 @@ class VinInfoTest {
             val result = VinInfo.fromNumber(input)
             assertNotNull(result)
             assertTrue(result.isFailure)
+        }
+    }
+
+    // --- checksum property ---
+
+    @Test
+    fun `checksum returns check digit char for non-EU VIN`() {
+        val vinInfo = VinInfo.fromNumber("1HGBH41JXMN109186").getOrThrow()
+        assertEquals('X', vinInfo.checksum)
+        vinInfo.close()
+    }
+
+    @Test
+    fun `checksum throws NoChecksumForEuException for EU VIN`() {
+        val vinInfo = VinInfo.fromNumber("WBA3A5G59DNP26082").getOrThrow()
+        assertFailsWith<NoChecksumForEuException> { vinInfo.checksum }
+        vinInfo.close()
+    }
+
+    // --- toString ---
+
+    @Test
+    fun `toString returns the normalized VIN`() {
+        val vinInfo = VinInfo.fromNumber("1HGBH41JXMN109186").getOrThrow()
+        assertEquals("1HGBH41JXMN109186", vinInfo.toString())
+        vinInfo.close()
+    }
+
+    // --- withVinInfo extension ---
+
+    @Test
+    fun `withVinInfo executes block for valid VIN and closes resource`() {
+        var captured = 0
+        "1HGBH41JXMN109186".withVinInfo { captured = year }
+        assertEquals(1991, captured)
+    }
+
+    @Test
+    fun `withVinInfo skips block for invalid VIN`() {
+        var called = false
+        "NOT-A-VIN".withVinInfo { called = true }
+        assertFalse(called)
+    }
+
+    // --- getCountryFromWmi else branch in secondCharRank ---
+
+    @Test
+    fun `getCountryFromWmi with invalid second char hits else branch in secondCharRank`() {
+        // '8' has only 2-char start ranges (8A–8E, 8F–8G, …); there is no single-char "8" fallback.
+        // '@' is not A-Z or 0-9, so secondCharRank returns -1, which falls outside every range.
+        // The WMI "8@X" is also absent from wmiList, so getCountryFromWmi throws.
+        assertFailsWith<InvalidWmiForCountryException> {
+            getCountryFromWmi("8@X")
         }
     }
 }
