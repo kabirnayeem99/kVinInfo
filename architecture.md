@@ -35,11 +35,16 @@
 
 ## API
 
-**Factory:** `VinInfo.fromNumber(vin: String)` → throws `InvalidVinLengthException` if blank
+**Factory:** `VinInfo.fromNumber(vin: String)` → `Result<VinInfo>` (never throws)
 
 **Properties:** `wmi` (0-2) | `vds` (3-8) | `vis` (9-16) | `year` | `manufacturer` | `serialNumber` | `region` | `country`
+All computed properties (except `vinNumber`) are `by lazy` — computed once on first access.
+
+**Checksum:** `checkDigit: Char?` — null for EU/non-required regions | `checksum: Char` — throws `NoChecksumForEuException` for EU | `calculatedChecksum: Char` — always computed
 
 **Validation:** `isFormatValid` | `isCheckDigitRequired` | `isCheckDigitValid` | `isValid`
+
+**Top-level extension:** `String.withVinInfo(block: VinInfo.() -> Unit): Result<Unit>` — also importable as `VinInfo.Companion.withVinInfo`
 
 ---
 
@@ -113,13 +118,13 @@ Coverage: happy path, failure path (I,O,Q, length, checksum), edge cases (all-on
 
 **Normalization:** Uppercase + remove "-" only (no trim, implicit in `fromNumber()`)
 
-**Validation:** Strict 17-char regex, conditional checksum (NA/China), lazy eval on property access, exception-based
+**Validation:** Strict 17-char regex, conditional checksum (NA/China), `by lazy` on all computed properties, `Result`-based public API
 
 **Mfr Resolution:** Extended ID → Full WMI → 2-char prefix fallback; '9' pos 2 = small-vol marker
 
 **Year:** 30-yr cycle disambiguated by pos 7 (numeric 1980-2009) vs pos 10 (alpha 2010-2039)
 
-**Error Handling:** Early blank check, runtime exceptions, no Result pattern
+**Error Handling:** `fromNumber` returns `Result<VinInfo>` (never throws). NHTSA fns throw `NhtsaDatabaseFailedException` on network/API failure; `NhtsaDatabaseAlreadyClosedException` if closed client used.
 
 ---
 
@@ -136,7 +141,7 @@ Coverage: happy path, failure path (I,O,Q, length, checksum), edge cases (all-on
 ## Limitations
 
 - No whitespace trimming
-- Exception-based (no Result/sealed class)
+- Public API is `Result`-based (`fromNumber`, `withVinInfo`); NHTSA suspend fns throw on failure
 - NHTSA API optional; works offline
 - Small-vol detection: '9' hardcoded
 - Strict validation (no historical/invalid VINs)

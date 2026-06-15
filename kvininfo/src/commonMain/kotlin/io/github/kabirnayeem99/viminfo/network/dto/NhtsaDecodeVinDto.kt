@@ -4,7 +4,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class NhtsaDecodeVinDto(
+internal data class NhtsaDecodeVinDto(
     @SerialName("Count") val count: Long? = null,
     @SerialName("Message") val message: String? = null,
     @SerialName("Results") val results: List<Result?>? = null,

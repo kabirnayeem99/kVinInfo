@@ -1,6 +1,6 @@
 package io.github.kabirnayeem99.viminfo.decode
 
-object VinSanitizer {
+internal object VinSanitizer {
     /**
      * Sanitizes a VIN string by trimming whitespace, removing hyphens and internal spaces,
      * converting to uppercase, and substituting ambiguous letters (I -> 1, O -> 0, Q -> 0).

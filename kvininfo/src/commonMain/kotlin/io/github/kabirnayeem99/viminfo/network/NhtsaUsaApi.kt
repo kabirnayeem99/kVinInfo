@@ -65,15 +65,17 @@ internal class NhtsaUsaApi(
      * This function fetches the decoded VIN information from the NHTSA API and caches the response.
      * It parses the response and populates the `decodedValueMap` with variable ID and value pairs.
      *
-     * @return A `NhtsaDecodeVinDto` object containing the decoded VIN information, or `null` if an error occurs.
+     * @return A `NhtsaDecodeVinDto` object containing the decoded VIN information.
+     * @throws NhtsaDatabaseAlreadyClosedException If [close] has already been called.
+     * @throws NhtsaDatabaseFailedException If the API call fails for any other reason.
      */
-    private suspend fun decodeVinWithApi(): NhtsaDecodeVinDto? {
+    private suspend fun decodeVinWithApi(): NhtsaDecodeVinDto {
         return withContext(Dispatchers.IO) {
             try {
                 mutex.withLock {
                     if (isClosed) throw NhtsaDatabaseAlreadyClosedException()
 
-                    if (cachedApiResponse != null) return@withLock cachedApiResponse
+                    cachedApiResponse?.let { return@withLock it }
 
                     cachedApiResponse = httpClient.get(baseUrl).body<NhtsaDecodeVinDto>()
                     decodedValueMap = cachedApiResponse
@@ -88,11 +90,12 @@ internal class NhtsaUsaApi(
                             }
                         }?.toMap() ?: emptyMap()
 
-                    cachedApiResponse
+                    cachedApiResponse ?: throw NhtsaDatabaseFailedException()
                 }
+            } catch (e: NhtsaDatabaseAlreadyClosedException) {
+                throw e
             } catch (e: Exception) {
-                e.printStackTrace()
-                null
+                throw NhtsaDatabaseFailedException(e.message)
             }
         }
     }
@@ -109,7 +112,11 @@ internal class NhtsaUsaApi(
      */
     private suspend fun resolveDecodedValue(variableId: Long): String =
         decodedValueMap.takeIf { dvm -> dvm.isNotEmpty() }?.get(variableId) ?: run {
-            decodeVinWithApi()
+            try {
+                decodeVinWithApi()
+            } catch (e: NhtsaDatabaseAlreadyClosedException) {
+                throw NhtsaDatabaseFailedException(e.message)
+            }
             decodedValueMap[variableId] ?: throw NhtsaDatabaseFailedException()
         }
 
@@ -156,7 +163,7 @@ internal class NhtsaUsaApi(
     private suspend fun getInfoAsMap(): Map<String, String> =
         withContext(Dispatchers.IO) {
             decodeVinWithApi()
-                ?.results
+                .results
                 ?.filterNotNull()
                 ?.filter { it.variableId != null }
                 ?.mapNotNull { value ->
@@ -178,12 +185,7 @@ internal class NhtsaUsaApi(
      */
     suspend fun toStringAsJson(): String =
         withContext(Dispatchers.IO) {
-            try {
-                json.encodeToString(getInfoAsMap())
-            } catch (e: Exception) {
-                e.printStackTrace()
-                throw NhtsaDatabaseFailedException(e.message)
-            }
+            json.encodeToString(getInfoAsMap())
         }
 
     /**
@@ -194,14 +196,20 @@ internal class NhtsaUsaApi(
      * @return A `Result` object indicating success with the VIN number if valid, or failure with an `InvalidVinException` if invalid.
      */
     suspend fun isValidByNhtsa(): Result<String> {
-        val errorMessage =
-            decodeVinWithApi()?.results?.firstOrNull { it?.variableId == NhtsaDecodeVinDto.ERROR_TEXT_VARIABLE_ID }?.value
-                ?: ""
-        if (errorMessage == "0 - VIN decoded clean. Check Digit (9th position) is correct") {
-            return Result.success(vinNumber)
+        val dto = try {
+            decodeVinWithApi()
+        } catch (e: NhtsaDatabaseAlreadyClosedException) {
+            return Result.failure(e)
+        } catch (e: NhtsaDatabaseFailedException) {
+            null
         }
-        if (errorMessage.isBlank()) return Result.success(vinNumber)
-        return Result.failure(InvalidVinException(errorMessage))
+        val errorMessage = dto?.results
+            ?.firstOrNull { it?.variableId == NhtsaDecodeVinDto.ERROR_TEXT_VARIABLE_ID }
+            ?.value ?: ""
+        return if (errorMessage.isBlank() || errorMessage == "0 - VIN decoded clean. Check Digit (9th position) is correct")
+            Result.success(vinNumber)
+        else
+            Result.failure(InvalidVinException(errorMessage))
     }
 
     /**

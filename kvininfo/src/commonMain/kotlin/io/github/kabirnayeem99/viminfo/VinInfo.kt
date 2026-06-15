@@ -8,7 +8,6 @@ import io.github.kabirnayeem99.viminfo.decode.VinModelYear
 import io.github.kabirnayeem99.viminfo.decode.VinRegion
 import io.github.kabirnayeem99.viminfo.decode.VinSanitizer
 import io.github.kabirnayeem99.viminfo.decode.VinValidator
-import io.github.kabirnayeem99.viminfo.exceptions.InvalidVinLengthException
 import io.github.kabirnayeem99.viminfo.exceptions.NoChecksumForEuException
 import io.github.kabirnayeem99.viminfo.network.NhtsaUsaApi
 import io.ktor.client.engine.HttpClientEngine
@@ -41,12 +40,8 @@ class VinInfo private constructor(
     private val nhtsaEngine: HttpClientEngine? = null,
 ) : AutoCloseable {
 
-    private var _nhtsaUsaApi: NhtsaUsaApi? = null
-    private val nhtsaUsaApi: NhtsaUsaApi
-        get() {
-            if (_nhtsaUsaApi == null) _nhtsaUsaApi = NhtsaUsaApi(normalizedNumber, nhtsaEngine)
-            return _nhtsaUsaApi!!
-        }
+    private val _nhtsaApi = lazy { NhtsaUsaApi(normalizedNumber, nhtsaEngine) }
+    private val nhtsaUsaApi: NhtsaUsaApi by _nhtsaApi
 
     /**
      * Indicates whether the VIN's format is valid: exactly 17 characters from the allowed
@@ -54,8 +49,7 @@ class VinInfo private constructor(
      *
      * This does not check the check digit; see [isCheckDigitValid] and [isValid].
      */
-    val isFormatValid: Boolean
-        get() = VinFormat.isValid(normalizedNumber)
+    val isFormatValid: Boolean by lazy { VinFormat.isValid(normalizedNumber) }
 
     /**
      * Whether the check digit (position 9) is mandatory for this VIN's region.
@@ -65,14 +59,12 @@ class VinInfo private constructor(
      *
      * @throws io.github.kabirnayeem99.viminfo.exceptions.InvalidVinRegionCharException If the first character is not a valid region code.
      */
-    val isCheckDigitRequired: Boolean
-        get() = VinRegion.requiresCheckDigit(normalizedNumber)
+    val isCheckDigitRequired: Boolean by lazy { VinRegion.requiresCheckDigit(normalizedNumber) }
 
     /**
      * Whether the check digit (position 9) matches the value computed from the rest of the VIN.
      */
-    val isCheckDigitValid: Boolean
-        get() = VinChecksum.matches(normalizedNumber)
+    val isCheckDigitValid: Boolean by lazy { VinChecksum.matches(normalizedNumber) }
 
     /**
      * Indicates whether the VIN is valid.
@@ -81,11 +73,9 @@ class VinInfo private constructor(
      * ([isCheckDigitRequired]) it must also match. Regions that do not require a check digit are
      * considered valid on format alone.
      */
-    val isValid: Boolean
-        get() = isFormatValid && (!isCheckDigitRequired || isCheckDigitValid)
+    val isValid: Boolean by lazy { isFormatValid && (!isCheckDigitRequired || isCheckDigitValid) }
 
-    val vinNumber: String
-        get() = normalizedNumber
+    val vinNumber: String get() = normalizedNumber
 
     /**
      * The World Manufacturer Identifier (WMI) part of the VIN.
@@ -127,67 +117,28 @@ class VinInfo private constructor(
      *
      * @throws io.github.kabirnayeem99.viminfo.exceptions.InvalidVinYearException If the year character is not a valid model-year code.
      */
-    val year: Int
-        get() = VinModelYear.decode(normalizedNumber)
+    val year: Int by lazy { VinModelYear.decode(normalizedNumber) }
 
     /**
-     * The expected check digit (9th character) for the VIN.
+     * The expected check digit (9th character) for the VIN, computed with the ISO 3779
+     * weighted-sum algorithm. Always computed regardless of region.
      *
-     * Computed with the ISO 3779 weighted-sum algorithm.
+     * See also [checkDigit], which returns null for regions that do not require a check digit.
      */
-    val calculatedChecksum: Char
-        get() = VinChecksum.calculate(normalizedNumber)
+    val calculatedChecksum: Char by lazy { VinChecksum.calculate(normalizedNumber) }
 
     /**
-     * The region name associated with the VIN.
-     *
-     * @throws IllegalArgumentException If the region code is invalid or not found.
+     * The check digit character at position 9 of the VIN, or null if the region
+     * does not require one (e.g. Europe).
      */
-    val region: String
-        get() = VinRegion.name(normalizedNumber)
+    val checkDigit: Char? by lazy {
+        if (!isCheckDigitRequired) null else normalizedNumber[VinChecksum.CHECK_DIGIT_INDEX]
+    }
 
     /**
-     * The country associated with the VIN.
+     * The checksum character at position 9 of the VIN.
      *
-     * This property retrieves the country based on the World Manufacturer Identifier (WMI) part of the VIN.
-     *
-     * @return The country name, or null if it cannot be determined.
-     */
-    val country: String?
-        get() = try { getCountryFromWmi(wmi) } catch (_: Exception) { null }
-
-    /**
-     * The region code associated with the VIN.
-     *
-     * @throws io.github.kabirnayeem99.viminfo.exceptions.InvalidVinRegionCharException If the first character is not a valid region code.
-     */
-    val regionCode: String
-        get() = VinRegion.code(normalizedNumber)
-
-    /**
-     * The manufacturer of the vehicle.
-     *
-     * Determines the manufacturer from the WMI. For small-volume makers (WMI 3rd character `9`)
-     * the extended identifier in positions 12–14 is also considered.
-     *
-     * @return The manufacturer name, or null if it cannot be determined.
-     */
-    val manufacturer: String?
-        get() = try { VinManufacturer.resolve(normalizedNumber) } catch (_: Exception) { null }
-
-    /**
-     * Whether the VIN belongs to a small-volume manufacturer (fewer than 500 vehicles/year),
-     * indicated by a `9` in the third WMI position.
-     */
-    val isSmallVolumeManufacturer: Boolean
-        get() = VinManufacturer.isSmallVolume(normalizedNumber)
-
-    /**
-     * The checksum character of the VIN.
-     *
-     * This property extracts the checksum character from the ninth position of the normalized VIN for regions other than EU.
-     *
-     * @throws NoChecksumForEuException If the region is EU, which doesn't have a checksum character.
+     * @throws NoChecksumForEuException If the region is EU, which does not use a check digit.
      */
     val checksum: Char
         get() {
@@ -198,12 +149,50 @@ class VinInfo private constructor(
         }
 
     /**
+     * The region name associated with the VIN.
+     *
+     * @throws IllegalArgumentException If the region code is invalid or not found.
+     */
+    val region: String by lazy { VinRegion.name(normalizedNumber) }
+
+    /**
+     * The country associated with the VIN.
+     *
+     * This property retrieves the country based on the World Manufacturer Identifier (WMI) part of the VIN.
+     *
+     * @return The country name, or null if it cannot be determined.
+     */
+    val country: String? by lazy { runCatching { getCountryFromWmi(wmi) }.getOrNull() }
+
+    /**
+     * The region code associated with the VIN.
+     *
+     * @throws io.github.kabirnayeem99.viminfo.exceptions.InvalidVinRegionCharException If the first character is not a valid region code.
+     */
+    val regionCode: String by lazy { VinRegion.code(normalizedNumber) }
+
+    /**
+     * The manufacturer of the vehicle.
+     *
+     * Determines the manufacturer from the WMI. For small-volume makers (WMI 3rd character `9`)
+     * the extended identifier in positions 12–14 is also considered.
+     *
+     * @return The manufacturer name, or null if it cannot be determined.
+     */
+    val manufacturer: String? by lazy { runCatching { VinManufacturer.resolve(normalizedNumber) }.getOrNull() }
+
+    /**
+     * Whether the VIN belongs to a small-volume manufacturer (fewer than 500 vehicles/year),
+     * indicated by a `9` in the third WMI position.
+     */
+    val isSmallVolumeManufacturer: Boolean by lazy { VinManufacturer.isSmallVolume(normalizedNumber) }
+
+    /**
      * The assembly plant code character.
      *
      * This property extracts the assembly plant code character from the eleventh position of the normalized VIN.
      */
-    val assemblyPlant: Char
-        get() = normalizedNumber[10]
+    val assemblyPlant: Char by lazy { normalizedNumber[10] }
 
     /**
      * The serial number part of the VIN.
@@ -212,9 +201,10 @@ class VinInfo private constructor(
      * small-volume manufacturers, positions 12–14 carry the manufacturer identifier, so the serial
      * number is only positions 15–17 (the last three characters).
      */
-    val serialNumber: String
-        get() = if (normalizedNumber[2] == '9') normalizedNumber.substring(14, 17)
+    val serialNumber: String by lazy {
+        if (normalizedNumber[2] == '9') normalizedNumber.substring(14, 17)
         else normalizedNumber.substring(11, 17)
+    }
 
     /**
      * Retrieves the make of the vehicle from the NHTSA USA API.
@@ -269,6 +259,15 @@ class VinInfo private constructor(
      */
     suspend fun toJsonString() = nhtsaUsaApi.toStringAsJson()
 
+    /**
+     * Closes the current instance of the class.
+     *
+     * This function releases any resources held by the object, such as network connections.
+     */
+    override fun close() {
+        if (_nhtsaApi.isInitialized()) _nhtsaApi.value.close()
+    }
+
     companion object {
 
         /**
@@ -314,40 +313,32 @@ class VinInfo private constructor(
         }
 
         /**
-         * Extracts information from a VIN and executes a lambda function with the extracted data.
+         * Parses the receiver string as a VIN and runs [info] with the decoded [VinInfo] as
+         * receiver, then closes the instance.
          *
-         * **Example:**
-         * ```kotlin
-         * "WBA3A5G59DNP26082".withVinInfo {
-         *     println(year)  // 2013
-         *     println(region)  // Europe
-         *     println(manufacturer)  // BMW AG
-         * }
-         * ```
-         *
-         * @receiver The VIN string from which to extract information.
-         * @param info A lambda function that receives a `VinInfo` instance as its receiver.
+         * See the top-level [withVinInfo] extension for the canonical implementation.
          */
-        fun String.withVinInfo(info: VinInfo.() -> Unit) {
-            val result = fromNumber(this)
-            val vinInfo = result.getOrElse {
-                it.printStackTrace()
-                return
-            }
-            try {
-                vinInfo.info()
-            } finally {
-                vinInfo.close()
-            }
+        fun String.withVinInfo(info: VinInfo.() -> Unit): Result<Unit> {
+            val vinInfo = fromNumber(this).getOrElse { return Result.failure(it) }
+            return vinInfo.use { Result.runCatching { it.info() } }
         }
     }
+}
 
-    /**
-     * Closes the current instance of the class.
-     *
-     * This function releases any resources held by the object, such as network connections.
-     */
-    override fun close() {
-        _nhtsaUsaApi?.close()
-    }
+/**
+ * Parses this string as a VIN, runs [block] with the decoded [VinInfo] as receiver,
+ * then closes the instance. Returns [Result.success] on success or [Result.failure]
+ * wrapping the parse error or any exception thrown by [block].
+ *
+ * ```kotlin
+ * "WBA3A5G59DNP26082".withVinInfo {
+ *     println(year)        // 2013
+ *     println(region)      // Europe
+ *     println(manufacturer) // BMW AG
+ * }
+ * ```
+ */
+fun String.withVinInfo(block: VinInfo.() -> Unit): Result<Unit> {
+    val vinInfo = VinInfo.fromNumber(this).getOrElse { return Result.failure(it) }
+    return vinInfo.use { Result.runCatching { it.block() } }
 }

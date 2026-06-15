@@ -10,7 +10,7 @@ package io.github.kabirnayeem99.viminfo.data
  *
  * The codes skip the letters I, O, Q, U, Z and the digit 0, giving exactly 30 valid codes.
  */
-val yearCodeBaseValues =
+internal val yearCodeBaseValues =
     mapOf<Char, Int>(
         'A' to 1980,
         'B' to 1981,
@@ -45,4 +45,4 @@ val yearCodeBaseValues =
     )
 
 /** Length of one full model-year code cycle, in years. */
-const val YEAR_CODE_CYCLE_LENGTH = 30
+internal const val YEAR_CODE_CYCLE_LENGTH = 30
