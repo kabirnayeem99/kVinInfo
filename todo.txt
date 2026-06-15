@@ -1,0 +1,9 @@
+- [x] add a VIN sanitize function, it will make O, Q into 0, and I into 1. remove space, make upper letter. add tests for it. 
+- [x] validate the VIN before doing any parsing, if VIN is wrong, just plain out say the reason, don't parse. Skip validation of checksum for EU and other such cases where checksum not needed.
+- [x] don't crash on anything, just return error.
+
+- [x] setup ktlint, and multi agent, setup AGENT files and skill setup.
+- update readme with screenshots, GIF, and guide from Ktor2Curl.
+- add tests for every use cases (100% test coverage).
+- and follow maven publishing from Ktor2Curl.
+- add testing for NHTSA DB.

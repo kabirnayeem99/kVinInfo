@@ -7,4 +7,6 @@ package io.github.kabirnayeem99.viminfo.exceptions
  *
  * @param message A descriptive message explaining the reason for the invalid VIN.
  */
-open class InvalidVinException(message: String) : Exception(message)
+open class InvalidVinException(
+    message: String,
+) : Exception(message)

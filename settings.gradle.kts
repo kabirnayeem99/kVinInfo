@@ -1,10 +1,12 @@
 pluginManagement {
-    includeBuild("convention-plugins")
     repositories {
         google()
         mavenCentral()
         gradlePluginPortal()
     }
+}
+plugins {
+    id("org.gradle.toolchains.foojay-resolver-convention") version "0.10.0"
 }
 
 dependencyResolutionManagement {
@@ -16,3 +18,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "kvininfo"
 include(":kvininfo")
+include(":sample")

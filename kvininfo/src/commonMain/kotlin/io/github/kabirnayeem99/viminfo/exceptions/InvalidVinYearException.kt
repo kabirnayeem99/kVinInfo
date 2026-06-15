@@ -7,5 +7,8 @@ package io.github.kabirnayeem99.viminfo.exceptions
  *
  * @param yearChar The invalid year character.
  */
-class InvalidVinYearException(yearChar: Char) :
-    InvalidVinException("Invalid model year character: '$yearChar'. Expected a valid year character within the allowed range. Please check the VIN and try again.")
+class InvalidVinYearException(
+    yearChar: Char,
+) : InvalidVinException(
+        "Invalid model year character: '$yearChar'. Expected a valid year character within the allowed range. Please check the VIN and try again.",
+    )

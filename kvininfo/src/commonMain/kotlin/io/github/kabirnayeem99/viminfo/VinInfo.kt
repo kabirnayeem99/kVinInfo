@@ -1,14 +1,14 @@
 package io.github.kabirnayeem99.viminfo
 
 import io.github.kabirnayeem99.viminfo.data.getCountryFromWmi
-import io.github.kabirnayeem99.viminfo.data.manufacturers
-import io.github.kabirnayeem99.viminfo.data.years
+import io.github.kabirnayeem99.viminfo.decode.VinChecksum
+import io.github.kabirnayeem99.viminfo.decode.VinFormat
+import io.github.kabirnayeem99.viminfo.decode.VinManufacturer
+import io.github.kabirnayeem99.viminfo.decode.VinModelYear
+import io.github.kabirnayeem99.viminfo.decode.VinRegion
+import io.github.kabirnayeem99.viminfo.decode.VinSanitizer
+import io.github.kabirnayeem99.viminfo.decode.VinValidator
 import io.github.kabirnayeem99.viminfo.exceptions.InvalidVinLengthException
-import io.github.kabirnayeem99.viminfo.exceptions.InvalidVinRegionCharException
-import io.github.kabirnayeem99.viminfo.exceptions.InvalidVinYearException
-import io.github.kabirnayeem99.viminfo.exceptions.InvalidWmiException
-import io.github.kabirnayeem99.viminfo.exceptions.InvalidWmiForCountryException
-import io.github.kabirnayeem99.viminfo.exceptions.NhtsaDatabaseFailedException
 import io.github.kabirnayeem99.viminfo.exceptions.NoChecksumForEuException
 import io.github.kabirnayeem99.viminfo.network.NhtsaUsaApi
 import kotlin.jvm.JvmStatic
@@ -16,7 +16,8 @@ import kotlin.jvm.JvmStatic
 /**
  * Represents a Vehicle Identification Number (VIN) and provides methods for parsing, validation, and extraction of relevant data.
  *
- * This class encapsulates information about a VIN, including its constituent parts and associated data. It offers functionalities to:
+ * This class is a thin facade over the decoders in the `decode` package (format, checksum, region,
+ * model year and manufacturer) plus the NHTSA network lookups. It offers functionalities to:
  * - Parse a VIN string into its components (WMI, VDS, VIS, Country, Region, Brand, Make, Model and so on).
  * - Validate the VIN based on basic format checks and optional NHTSA validation.
  * - Extract information such as year, manufacturer, and region.
@@ -25,7 +26,7 @@ import kotlin.jvm.JvmStatic
  * **Example:**
  * ```kotlin
  * val vin = "WBA3A5G59DNP26082"
- * val vinInfo = VinInfo.fromNumber(vin)
+ * val vinInfo = VinInfo.fromNumber(vin).getOrThrow()
  * vinInfo.use { vi -> println(vi.year) } // 2013
  * ```
  * A VIN (Vehicle Identification Number) is a unique 17-character code assigned to every individual motor vehicle. It's like a fingerprint for a car, ensuring no two vehicles have the same identifier.
@@ -36,19 +37,48 @@ import kotlin.jvm.JvmStatic
  */
 class VinInfo private constructor(private val normalizedNumber: String) : AutoCloseable {
 
-    private val nhtsaUsaApi by lazy { NhtsaUsaApi(normalizedNumber) }
-
-    private val validVinRegex = "^[a-zA-Z0-9]+$".toRegex()
+    private var _nhtsaUsaApi: NhtsaUsaApi? = null
+    private val nhtsaUsaApi: NhtsaUsaApi
+        get() {
+            if (_nhtsaUsaApi == null) _nhtsaUsaApi = NhtsaUsaApi(normalizedNumber)
+            return _nhtsaUsaApi!!
+        }
 
     /**
-     * Indicates whether the VIN passes a basic format check.
+     * Indicates whether the VIN's format is valid: exactly 17 characters from the allowed
+     * alphabet (digits and letters except I, O and Q).
      *
-     * This property performs a preliminary validation based on the VIN's length, adherence to a basic regular expression pattern, and the calculated check digit matching the VIN's check digit at the ninth position.
+     * This does not check the check digit; see [isCheckDigitValid] and [isValid].
+     */
+    val isFormatValid: Boolean
+        get() = VinFormat.isValid(normalizedNumber)
+
+    /**
+     * Whether the check digit (position 9) is mandatory for this VIN's region.
      *
-     * It does not guarantee the VIN's overall validity or correctness, as the check digit position or VIN length might vary for certain VIN standards.
+     * Per the standard the check digit is compulsory only in North America (USA, Canada) and
+     * China; it is optional everywhere else (e.g. Europe).
+     *
+     * @throws io.github.kabirnayeem99.viminfo.exceptions.InvalidVinRegionCharException If the first character is not a valid region code.
+     */
+    val isCheckDigitRequired: Boolean
+        get() = VinRegion.requiresCheckDigit(normalizedNumber)
+
+    /**
+     * Whether the check digit (position 9) matches the value computed from the rest of the VIN.
+     */
+    val isCheckDigitValid: Boolean
+        get() = VinChecksum.matches(normalizedNumber)
+
+    /**
+     * Indicates whether the VIN is valid.
+     *
+     * The format must be valid, and where the check digit is mandatory for the region
+     * ([isCheckDigitRequired]) it must also match. Regions that do not require a check digit are
+     * considered valid on format alone.
      */
     val isValid: Boolean
-        get() = validVinRegex.matches(normalizedNumber) && normalizedNumber.length == 17 && (if (regionCode == "EU" || country == "United Kingdom") true else calculatedChecksum == checksum)
+        get() = isFormatValid && (!isCheckDigitRequired || isCheckDigitValid)
 
     val vinNumber: String
         get() = normalizedNumber
@@ -57,38 +87,25 @@ class VinInfo private constructor(private val normalizedNumber: String) : AutoCl
      * The World Manufacturer Identifier (WMI) part of the VIN.
      *
      * Extracts the first three characters of the normalized VIN as the WMI.
-     *
-     * @throws InvalidVinLengthException If the VIN is too short to extract the WMI.
      */
     val wmi: String
-        get() = if (normalizedNumber.length >= 3) normalizedNumber.substring(
-            0, 3
-        ) else throw InvalidVinLengthException(normalizedNumber)
+        get() = normalizedNumber.substring(0, 3)
 
     /**
      * The Vehicle Descriptor Section (VDS) part of the VIN.
      *
      * Extracts characters 4 to 8 of the normalized VIN as the VDS.
-     *
-     * @throws InvalidVinLengthException If the VIN is too short to extract the VDS.
      */
     val vds: String
-        get() = if (normalizedNumber.length >= 9) normalizedNumber.substring(
-            3, 9
-        ) else throw InvalidVinLengthException(normalizedNumber)
+        get() = normalizedNumber.substring(3, 9)
 
     /**
      * The Vehicle Identification Section (VIS) part of the VIN.
      *
      * Extracts characters 9 to 16 of the normalized VIN as the VIS.
-     *
-     * @throws InvalidVinLengthException If the VIN is too short to extract the VIS.
      */
     val vis: String
-        get() = if (normalizedNumber.length >= 17) normalizedNumber.substring(
-            9, 17
-        ) else throw InvalidVinLengthException(normalizedNumber)
-
+        get() = normalizedNumber.substring(9, 17)
 
     /**
      * Validates the VIN against the NHTSA USA database.
@@ -101,134 +118,68 @@ class VinInfo private constructor(private val normalizedNumber: String) : AutoCl
     suspend fun isValidByNhtsa() = nhtsaUsaApi.isValidByNhtsa()
 
     /**
-     * The year of the vehicle as an integer.
+     * The model year of the vehicle as an integer.
      *
-     * This property extracts the year from the VIN's year character and returns it as an integer.
+     * The model-year code (position 10) repeats every 30 years, so it is ambiguous on its own.
+     * Position 7 selects the cycle: a numeric position 7 means the 1980–2009 cycle, an alphabetic
+     * position 7 means the 2010–2039 cycle.
      *
-     * @throws InvalidVinYearException If the year character is invalid.
+     * @throws io.github.kabirnayeem99.viminfo.exceptions.InvalidVinYearException If the year character is not a valid model-year code.
      */
     val year: Int
-        get() = years[yearCharacter] ?: throw InvalidVinYearException(yearCharacter)
-
+        get() = VinModelYear.decode(normalizedNumber)
 
     /**
-     * Calculates the check digit for the VIN.
+     * The expected check digit (9th character) for the VIN.
      *
-     * This property computes the check digit based on the provided VIN number using the specified algorithm.
+     * Computed with the ISO 3779 weighted-sum algorithm.
      */
     val calculatedChecksum: Char
-        get() {
-            val map = "0123456789X"
-            val weights = "8765432X098765432"
-
-            val sum = normalizedNumber.indices.sumOf { index ->
-                transliterate(normalizedNumber[index]) * map.indexOf(weights[index])
-            }
-
-            return map[sum % 11]
-        }
-
-    /**
-     * Transliterates a character to a numeric value.
-     *
-     * This function maps a character to its corresponding numeric value based on a predefined mapping.
-     *
-     * @param char The character to be transliterated.
-     * @return The numeric value corresponding to the character.
-     */
-    private fun transliterate(char: Char): Int {
-        val map = "0123456789.ABCDEFGH..JKLMN.P.R..STUVWXYZ"
-        return map.indexOf(char) % 10
-    }
-
-
-    private val regionMap = mapOf(
-        "AF" to "Africa",
-        "AS" to "Asia",
-        "EU" to "Europe",
-        "NA" to "North America",
-        "OC" to "Oceania",
-        "SA" to "South America"
-    )
+        get() = VinChecksum.calculate(normalizedNumber)
 
     /**
      * The region name associated with the VIN.
      *
-     * This property retrieves the region name based on the calculated region code.
-     *
-     * @throws IllegalArgumentException If the region code is invalid or not found in the region map.
+     * @throws IllegalArgumentException If the region code is invalid or not found.
      */
     val region: String
-        get() = regionMap[regionCode] ?: throw IllegalArgumentException("Wrong region code.")
+        get() = VinRegion.name(normalizedNumber)
 
     /**
      * The country associated with the VIN.
      *
      * This property retrieves the country based on the World Manufacturer Identifier (WMI) part of the VIN.
      *
-     * @return The country name.
-     * @throws InvalidWmiForCountryException If the WMI does not match the expected country code.
+     * @return The country name, or null if it cannot be determined.
      */
-    val country: String
-        get() = getCountryFromWmi(wmi)
+    val country: String?
+        get() = runCatching { getCountryFromWmi(wmi) }.getOrNull()
 
     /**
      * The region code associated with the VIN.
      *
-     * This property extracts the region code from the first character of the normalized VIN.
-     *
-     * @throws InvalidVinLengthException If the VIN is too short.
-     * @throws InvalidVinRegionCharException If the first character is not a valid region code.
+     * @throws io.github.kabirnayeem99.viminfo.exceptions.InvalidVinRegionCharException If the first character is not a valid region code.
      */
     val regionCode: String
-        get() {
-            val regionId =
-                normalizedNumber.getOrNull(0)?.toString() ?: throw InvalidVinLengthException(
-                    normalizedNumber
-                )
-
-            val regexAF = Regex("[A-H]", RegexOption.IGNORE_CASE)
-            val regexAS = Regex("[J-R]", RegexOption.IGNORE_CASE)
-            val regexEU = Regex("[S-Z]", RegexOption.IGNORE_CASE)
-            val regexNA = Regex("[1-5]", RegexOption.IGNORE_CASE)
-            val regexOC = Regex("[6-7]", RegexOption.IGNORE_CASE)
-            val regexSA = Regex("[8-9]", RegexOption.IGNORE_CASE)
-
-            return when {
-                regexAF.containsMatchIn(regionId) -> "AF"
-                regexAS.containsMatchIn(regionId) -> "AS"
-                regexEU.containsMatchIn(regionId) -> "EU"
-                regexNA.containsMatchIn(regionId) -> "NA"
-                regexOC.containsMatchIn(regionId) -> "OC"
-                regexSA.containsMatchIn(regionId) -> "SA"
-                else -> throw InvalidVinRegionCharException(regionId)
-            }
-        }
+        get() = VinRegion.code(normalizedNumber)
 
     /**
      * The manufacturer of the vehicle.
      *
-     * This property determines the manufacturer based on the World Manufacturer Identifier (WMI) part of the VIN.
-     * It first checks for a full WMI match, then attempts to find a match based on the first two characters of the WMI.
+     * Determines the manufacturer from the WMI. For small-volume makers (WMI 3rd character `9`)
+     * the extended identifier in positions 12–14 is also considered.
      *
-     * @throws InvalidVinLengthException If the VIN is too short to extract the WMI.
-     * @throws InvalidWmiException If the WMI or its shortened version is not found in the manufacturers map.
+     * @return The manufacturer name, or null if it cannot be determined.
      */
-    val manufacturer: String
-        get() {
-            if (wmi.isBlank()) throw InvalidVinLengthException(normalizedNumber)
-            return if (manufacturers.containsKey(this.wmi)) {
-                manufacturers[this.wmi] ?: throw InvalidWmiException(wmi)
-            } else {
-                val alternativeWmiId = this.wmi.substring(0, 2)
-                if (manufacturers.containsKey(alternativeWmiId)) {
-                    manufacturers[alternativeWmiId] ?: throw InvalidWmiException(wmi)
-                } else {
-                    throw InvalidWmiException(wmi)
-                }
-            }
+    val manufacturer: String?
+        get() = runCatching { VinManufacturer.resolve(normalizedNumber) }.getOrNull()
 
-        }
+    /**
+     * Whether the VIN belongs to a small-volume manufacturer (fewer than 500 vehicles/year),
+     * indicated by a `9` in the third WMI position.
+     */
+    val isSmallVolumeManufacturer: Boolean
+        get() = VinManufacturer.isSmallVolume(normalizedNumber)
 
     /**
      * The checksum character of the VIN.
@@ -238,25 +189,27 @@ class VinInfo private constructor(private val normalizedNumber: String) : AutoCl
      * @throws NoChecksumForEuException If the region is EU, which doesn't have a checksum character.
      */
     val checksum: Char
-        get() = if (regionCode != "EU") normalizedNumber[8] else throw NoChecksumForEuException()
+        get() = if (regionCode != "EU") normalizedNumber[VinChecksum.CHECK_DIGIT_INDEX]
+        else throw NoChecksumForEuException()
 
     /**
      * The assembly plant code character.
      *
      * This property extracts the assembly plant code character from the eleventh position of the normalized VIN.
-     *
-     * @throws InvalidVinLengthException If the VIN is too short to extract the assembly plant code character.
      */
     val assemblyPlant: Char
-        get() = normalizedNumber.getOrNull(10) ?: throw InvalidVinLengthException(normalizedNumber)
+        get() = normalizedNumber[10]
 
     /**
      * The serial number part of the VIN.
      *
-     * This property extracts the last five characters of the normalized VIN as the serial number.
+     * For high-volume manufacturers this is positions 12–17 (the last six characters). For
+     * small-volume manufacturers, positions 12–14 carry the manufacturer identifier, so the serial
+     * number is only positions 15–17 (the last three characters).
      */
     val serialNumber: String
-        get() = normalizedNumber.substring(12, 17)
+        get() = if (isSmallVolumeManufacturer) normalizedNumber.substring(14, 17)
+        else normalizedNumber.substring(11, 17)
 
     /**
      * Retrieves the make of the vehicle from the NHTSA USA API.
@@ -264,7 +217,7 @@ class VinInfo private constructor(private val normalizedNumber: String) : AutoCl
      * **Note:** This function is optimized for US-based VIN numbers. Results for other regions might be less accurate.
      *
      * @return The make of the vehicle.
-     * @throws NhtsaDatabaseFailedException If the decoded value cannot be found.
+     * @throws io.github.kabirnayeem99.viminfo.exceptions.NhtsaDatabaseFailedException If the decoded value cannot be found.
      */
     suspend fun getMakeFromNhtsa(): String = nhtsaUsaApi.getMakeValue()
 
@@ -274,7 +227,7 @@ class VinInfo private constructor(private val normalizedNumber: String) : AutoCl
      * **Note:** This function is optimized for US-based VIN numbers. Results for other regions might be less accurate.
      *
      * @return The model of the vehicle.
-     * @throws NhtsaDatabaseFailedException If the decoded value cannot be found.
+     * @throws io.github.kabirnayeem99.viminfo.exceptions.NhtsaDatabaseFailedException If the decoded value cannot be found.
      */
     suspend fun getModelFromNhtsa(): String = nhtsaUsaApi.getModelValue()
 
@@ -284,7 +237,7 @@ class VinInfo private constructor(private val normalizedNumber: String) : AutoCl
      * **Note:** This function is optimized for US-based VIN numbers. Results for other regions might be less accurate.
      *
      * @return The vehicle type.
-     * @throws NhtsaDatabaseFailedException If the decoded value cannot be found.
+     * @throws io.github.kabirnayeem99.viminfo.exceptions.NhtsaDatabaseFailedException If the decoded value cannot be found.
      */
     suspend fun getVehicleTypeFromNhtsa(): String = nhtsaUsaApi.getVehicleTypeValue()
 
@@ -294,26 +247,12 @@ class VinInfo private constructor(private val normalizedNumber: String) : AutoCl
      * **Note:** This function is optimized for US-based VIN numbers. Results for other regions might be less accurate.
      *
      * @return The body class of the vehicle.
-     * @throws NhtsaDatabaseFailedException If the decoded value cannot be found.
+     * @throws io.github.kabirnayeem99.viminfo.exceptions.NhtsaDatabaseFailedException If the decoded value cannot be found.
      */
     suspend fun getBodyClassFromNhtsa(): String = nhtsaUsaApi.getBodyClassValue()
 
-
-    /**
-     * The year character of the VIN.
-     *
-     * This property extracts the year character from the tenth position of the normalized VIN.
-     *
-     * @throws InvalidVinLengthException If the VIN is too short to extract the year character.
-     */
-    private val yearCharacter: Char
-        get() = normalizedNumber.getOrNull(9) ?: throw InvalidVinLengthException(normalizedNumber)
-
-
     /**
      * Returns a string representation of the VIN.
-     *
-     * This function concatenates the WMI, VDS, and VIS parts of the VIN to form the complete VIN.
      */
     override fun toString() = normalizedNumber
 
@@ -321,72 +260,75 @@ class VinInfo private constructor(private val normalizedNumber: String) : AutoCl
      * Converts the decoded VIN information to a JSON string using the NHTSA USA API.
      *
      * @return The decoded VIN information as a JSON string.
-     * @throws NhtsaDatabaseFailedException If an error occurs during serialization.
+     * @throws io.github.kabirnayeem99.viminfo.exceptions.NhtsaDatabaseFailedException If an error occurs during serialization.
      */
     suspend fun toJsonString() = nhtsaUsaApi.toStringAsJson()
 
     companion object {
 
-        private fun String.normalize() = uppercase().replace("-", "")
+        /**
+         * Creates a `VinInfo` object from a randomly generated valid VIN.
+         *
+         * The generated VIN has a correct check digit, a valid region code, and a valid
+         * model-year code. See [VinGenerator.generate] for details.
+         *
+         * @return A `VinInfo` backed by a freshly generated valid VIN.
+         */
+        @JvmStatic
+        fun random(): VinInfo = fromNumber(VinGenerator.generate()).getOrThrow()
 
         /**
          * Creates a `VinInfo` object from a given number string.
          *
-         * This function parses the provided number string and extracts relevant information
-         * based on its length. The extracted information is stored in the returned `VinInfo` object.
-         *
          * **Example:**
          * ```kotlin
          * val vin = "WBA3A5G59DNP26082"
-         * val vinInfo = VinInfo.fromNumber(vin)
+         * val result = VinInfo.fromNumber(vin)
+         * if (result.isSuccess) {
+         *     val vinInfo = result.getOrThrow()
+         *     // use vinInfo
+         * }
          * ```
          *
          * @param number The VIN number as a string.
-         * @return A `VinInfo` object containing parsed information from the number string.
-         * @throws InvalidVinLengthException if the VIN number is Blank
+         * @return A `Result` object containing a `VinInfo` instance if valid, or a failure with an exception if invalid.
          */
         @JvmStatic
-        fun fromNumber(number: String): VinInfo {
-            if (number.isBlank()) throw InvalidVinLengthException(number)
-            val normalizedNumber = number.normalize()
-            return VinInfo(normalizedNumber = normalizedNumber)
+        fun fromNumber(number: String): Result<VinInfo> {
+            val sanitized = VinSanitizer.sanitize(number)
+            val error = VinValidator.validate(sanitized)
+            if (error != null) return Result.failure(error)
+            return Result.success(VinInfo(normalizedNumber = sanitized))
         }
 
         /**
-         * Extracts information from a VIN (Vehicle Identification Number) and executes a lambda function with the extracted data.
+         * Extracts information from a VIN and executes a lambda function with the extracted data.
          *
          * **Example:**
          * ```kotlin
-         * val vin = "WBA3A5G59DNP26082"
-         * val vinInfo = VinInfo.fromNumber(vin)
          * "WBA3A5G59DNP26082".withVinInfo {
          *     println(year)  // 2013
          *     println(region)  // Europe
          *     println(manufacturer)  // BMW AG
-         *     println(getMakeFromNhtsa())  // BMW
-         *     println(getModelFromNhtsa())  // 328i
          * }
          * ```
          *
          * @receiver The VIN string from which to extract information.
          * @param info A lambda function that receives a `VinInfo` instance as its receiver.
-         *             This lambda can be used to access and manipulate the extracted VIN information.
-         * @throws InvalidVinLengthException if the VIN number is Blank
          */
         fun String.withVinInfo(info: VinInfo.() -> Unit) {
-            var vinInfo: VinInfo? = null
+            val result = fromNumber(this)
+            val vinInfo = result.getOrElse {
+                it.printStackTrace()
+                return
+            }
             try {
-                vinInfo = fromNumber(this)
-                vinInfo.also { vi -> vi.info() }
-            } catch (e: Exception) {
-                e.printStackTrace()
+                vinInfo.info()
             } finally {
-                vinInfo?.close()
+                vinInfo.close()
             }
         }
-
     }
-
 
     /**
      * Closes the current instance of the class.
@@ -394,6 +336,6 @@ class VinInfo private constructor(private val normalizedNumber: String) : AutoCl
      * This function releases any resources held by the object, such as network connections.
      */
     override fun close() {
-        nhtsaUsaApi.close()
+        _nhtsaUsaApi?.close()
     }
 }

@@ -5,6 +5,7 @@ package io.github.kabirnayeem99.viminfo.exceptions
  *
  * This exception is thrown when attempting to access the checksum for a European VIN, which doesn't have a checksum character.
  */
-class NoChecksumForEuException : InvalidVinException(
-    "No checksum character available for EU VINs. European VINs do not have a checksum."
-)
+class NoChecksumForEuException :
+    InvalidVinException(
+        "No checksum character available for EU VINs. European VINs do not have a checksum.",
+    )

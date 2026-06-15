@@ -7,5 +7,6 @@ package io.github.kabirnayeem99.viminfo.exceptions
  *
  * @param message An optional message providing additional details about the failure.
  */
-class NhtsaDatabaseFailedException(message: String? = "") :
-    Exception("Failed to find the value in the NHTSA database. ${message ?: ""}")
+class NhtsaDatabaseFailedException(
+    message: String? = "",
+) : Exception("Failed to find the value in the NHTSA database. ${message ?: ""}")

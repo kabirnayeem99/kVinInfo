@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "skills": {
+    "kotlin-coroutines-structured-concurrency": {
+      "source": "chrisbanes/skills",
+      "sourceType": "github",
+      "skillPath": "skills/kotlin-coroutines-structured-concurrency/SKILL.md",
+      "computedHash": "c31f4f027fab909555979ba82fceec81329348ea22b4853da6ebfa12cceebb35"
+    },
+    "kotlin-flow-state-event-modeling": {
+      "source": "chrisbanes/skills",
+      "sourceType": "github",
+      "skillPath": "skills/kotlin-flow-state-event-modeling/SKILL.md",
+      "computedHash": "b50d3d4f073ba83dd9a54d23893889f17d3f3ffd0069ec3cf7447d1c5c03c06a"
+    },
+    "kotlin-multiplatform-expect-actual": {
+      "source": "chrisbanes/skills",
+      "sourceType": "github",
+      "skillPath": "skills/kotlin-multiplatform-expect-actual/SKILL.md",
+      "computedHash": "f07cb4e9c445aa3836b2c72795bb7100310a2ab5c74580a9e576c80c37cd77ad"
+    },
+    "kotlin-types-value-class": {
+      "source": "chrisbanes/skills",
+      "sourceType": "github",
+      "skillPath": "skills/kotlin-types-value-class/SKILL.md",
+      "computedHash": "c837e0f92ff4a975da550de8b3ef8cfb655d44b1177f7ca102ab5a4b93709cde"
+    }
+  }
+}

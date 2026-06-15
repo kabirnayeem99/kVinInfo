@@ -1,6 +1,5 @@
 package io.github.kabirnayeem99.viminfo.network.dto
 
-
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -9,14 +8,14 @@ data class NhtsaDecodeVinDto(
     @SerialName("Count") val count: Long? = null,
     @SerialName("Message") val message: String? = null,
     @SerialName("Results") val results: List<Result?>? = null,
-    @SerialName("SearchCriteria") val searchCriteria: String? = null
+    @SerialName("SearchCriteria") val searchCriteria: String? = null,
 ) {
     @Serializable
     data class Result(
         @SerialName("Value") val value: String? = null,
         @SerialName("ValueId") val valueId: String? = null,
         @SerialName("Variable") val variable: String? = null,
-        @SerialName("VariableId") val variableId: Long? = null
+        @SerialName("VariableId") val variableId: Long? = null,
     )
 
     companion object {
