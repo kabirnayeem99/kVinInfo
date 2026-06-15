@@ -92,24 +92,21 @@ class VinInfo private constructor(
      *
      * Extracts the first three characters of the normalized VIN as the WMI.
      */
-    val wmi: String
-        get() = normalizedNumber.substring(0, 3)
+    val wmi: String by lazy { normalizedNumber.substring(0, 3) }
 
     /**
      * The Vehicle Descriptor Section (VDS) part of the VIN.
      *
      * Extracts characters 4 to 8 of the normalized VIN as the VDS.
      */
-    val vds: String
-        get() = normalizedNumber.substring(3, 9)
+    val vds: String by lazy { normalizedNumber.substring(3, 9) }
 
     /**
      * The Vehicle Identification Section (VIS) part of the VIN.
      *
      * Extracts characters 9 to 16 of the normalized VIN as the VIS.
      */
-    val vis: String
-        get() = normalizedNumber.substring(9, 17)
+    val vis: String by lazy { normalizedNumber.substring(9, 17) }
 
     /**
      * Validates the VIN against the NHTSA USA database.
@@ -157,7 +154,7 @@ class VinInfo private constructor(
      * @return The country name, or null if it cannot be determined.
      */
     val country: String?
-        get() = runCatching { getCountryFromWmi(wmi) }.getOrNull()
+        get() = try { getCountryFromWmi(wmi) } catch (_: Exception) { null }
 
     /**
      * The region code associated with the VIN.
@@ -176,7 +173,7 @@ class VinInfo private constructor(
      * @return The manufacturer name, or null if it cannot be determined.
      */
     val manufacturer: String?
-        get() = runCatching { VinManufacturer.resolve(normalizedNumber) }.getOrNull()
+        get() = try { VinManufacturer.resolve(normalizedNumber) } catch (_: Exception) { null }
 
     /**
      * Whether the VIN belongs to a small-volume manufacturer (fewer than 500 vehicles/year),
@@ -193,8 +190,12 @@ class VinInfo private constructor(
      * @throws NoChecksumForEuException If the region is EU, which doesn't have a checksum character.
      */
     val checksum: Char
-        get() = if (regionCode != "EU") normalizedNumber[VinChecksum.CHECK_DIGIT_INDEX]
-        else throw NoChecksumForEuException()
+        get() {
+            val c = normalizedNumber.getOrNull(0)
+            if (c == 'E' || c == 'F' || c == 'G' || (c != null && c in 'S'..'Z'))
+                throw NoChecksumForEuException()
+            return normalizedNumber[VinChecksum.CHECK_DIGIT_INDEX]
+        }
 
     /**
      * The assembly plant code character.
@@ -212,7 +213,7 @@ class VinInfo private constructor(
      * number is only positions 15–17 (the last three characters).
      */
     val serialNumber: String
-        get() = if (isSmallVolumeManufacturer) normalizedNumber.substring(14, 17)
+        get() = if (normalizedNumber[2] == '9') normalizedNumber.substring(14, 17)
         else normalizedNumber.substring(11, 17)
 
     /**

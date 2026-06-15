@@ -58,6 +58,6 @@ internal object VinRegion {
      */
     fun requiresCheckDigit(vin: String): Boolean {
         val regionChar = vin.getOrNull(0) ?: throw InvalidVinLengthException(vin)
-        return code(vin) == "NA" || regionChar == 'H' || regionChar == 'L'
+        return regionChar in '1'..'5' || regionChar == '7' || regionChar == 'H' || regionChar == 'L'
     }
 }

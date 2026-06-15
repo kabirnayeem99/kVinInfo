@@ -13,6 +13,8 @@ import io.ktor.client.request.get
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -29,27 +31,29 @@ internal class NhtsaUsaApi(
     private val vinNumber: String,
     engine: HttpClientEngine? = null,
 ) : AutoCloseable {
-    private val baseUrl by lazy {
-        "https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVin/$vinNumber?format=json"
-    }
+    private val baseUrl = "https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVin/$vinNumber?format=json"
 
     private var isClosed: Boolean = false
 
-    private val httpClient: HttpClient = if (engine != null) {
-        HttpClient(engine) {
-            install(ContentNegotiation) {
-                json(Json { ignoreUnknownKeys = true; useAlternativeNames = false })
+    private val httpClient: HttpClient by lazy {
+        if (engine != null) {
+            HttpClient(engine) {
+                install(ContentNegotiation) {
+                    json(json)
+                }
+                install(HttpCache)
             }
-            install(HttpCache)
-        }
-    } else {
-        HttpClient {
-            install(ContentNegotiation) {
-                json(Json { ignoreUnknownKeys = true; useAlternativeNames = false })
+        } else {
+            HttpClient {
+                install(ContentNegotiation) {
+                    json(json)
+                }
+                install(HttpCache)
             }
-            install(HttpCache)
         }
     }
+
+    private val mutex = Mutex()
 
     private var decodedValueMap = mapOf<Long, String>()
 
@@ -66,24 +70,26 @@ internal class NhtsaUsaApi(
     private suspend fun decodeVinWithApi(): NhtsaDecodeVinDto? {
         return withContext(Dispatchers.IO) {
             try {
-                if (cachedApiResponse != null) return@withContext cachedApiResponse
+                mutex.withLock {
+                    if (isClosed) throw NhtsaDatabaseAlreadyClosedException()
 
-                if (isClosed) throw NhtsaDatabaseAlreadyClosedException()
-                cachedApiResponse = httpClient.get(baseUrl).body<NhtsaDecodeVinDto>()
-                decodedValueMap = cachedApiResponse
-                    ?.results
-                    ?.filterNotNull()
-                    ?.filter { r -> r.variableId != null && !r.value.isNullOrBlank() }
-                    ?.mapNotNull { r ->
-                        r.value?.takeIf { v -> v.isNotBlank() }?.let { v ->
-                            r.variableId?.takeIf { vi -> vi > 0 }?.let { vi ->
-                                vi to v
+                    if (cachedApiResponse != null) return@withLock cachedApiResponse
+
+                    cachedApiResponse = httpClient.get(baseUrl).body<NhtsaDecodeVinDto>()
+                    decodedValueMap = cachedApiResponse
+                        ?.results
+                        ?.filterNotNull()
+                        ?.filter { r -> r.variableId != null && !r.value.isNullOrBlank() }
+                        ?.mapNotNull { r ->
+                            r.value?.takeIf { v -> v.isNotBlank() }?.let { v ->
+                                r.variableId?.takeIf { vi -> vi > 0 }?.let { vi ->
+                                    vi to v
+                                }
                             }
-                        }
-                    }?.toMap() ?: emptyMap()
+                        }?.toMap() ?: emptyMap()
 
-                println(decodedValueMap)
-                cachedApiResponse
+                    cachedApiResponse
+                }
             } catch (e: Exception) {
                 e.printStackTrace()
                 null
@@ -173,7 +179,7 @@ internal class NhtsaUsaApi(
     suspend fun toStringAsJson(): String =
         withContext(Dispatchers.IO) {
             try {
-                Json.encodeToString(getInfoAsMap())
+                json.encodeToString(getInfoAsMap())
             } catch (e: Exception) {
                 e.printStackTrace()
                 throw NhtsaDatabaseFailedException(e.message)
@@ -189,7 +195,7 @@ internal class NhtsaUsaApi(
      */
     suspend fun isValidByNhtsa(): Result<String> {
         val errorMessage =
-            decodeVinWithApi()?.results?.first { it?.variableId == NhtsaDecodeVinDto.ERROR_TEXT_VARIABLE_ID }?.value
+            decodeVinWithApi()?.results?.firstOrNull { it?.variableId == NhtsaDecodeVinDto.ERROR_TEXT_VARIABLE_ID }?.value
                 ?: ""
         if (errorMessage == "0 - VIN decoded clean. Check Digit (9th position) is correct") {
             return Result.success(vinNumber)
@@ -207,6 +213,11 @@ internal class NhtsaUsaApi(
     override fun close() {
         isClosed = true
         cachedApiResponse = null
+        decodedValueMap = emptyMap()
         httpClient.close()
+    }
+
+    companion object {
+        private val json = Json { ignoreUnknownKeys = true; useAlternativeNames = false }
     }
 }

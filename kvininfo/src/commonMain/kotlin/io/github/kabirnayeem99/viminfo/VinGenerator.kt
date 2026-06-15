@@ -29,10 +29,8 @@ object VinGenerator {
     //   - [0] != 'D' && [0] != '0': skip the two VIN-alphabet chars that have no region mapping
     private val REAL_WMIS: List<String> by lazy {
         manufacturers.keys
-            .filterIsInstance<String>()
             .filter { it.length == 3 && it[2] != '9' && it[0] != 'D' && it[0] != '0' && it.all { c -> c in VIN_ALPHABET } }
             .filter { wmi -> runCatching { getCountryFromWmi(wmi) }.isSuccess }
-            .distinct()
     }
 
     /**

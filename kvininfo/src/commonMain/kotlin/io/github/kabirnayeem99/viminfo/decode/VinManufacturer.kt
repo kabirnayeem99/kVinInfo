@@ -41,7 +41,7 @@ internal object VinManufacturer {
      */
     fun resolve(vin: String): String {
         val wmi = wmi(vin)
-        if (isSmallVolume(vin)) {
+        if (wmi[2] == SMALL_VOLUME_MARKER) {
             if (vin.length < EXTENDED_ID_END) throw InvalidVinLengthException(vin)
             val extendedId = wmi + vin.substring(EXTENDED_ID_START, EXTENDED_ID_END)
             manufacturers[extendedId]?.let { return it }

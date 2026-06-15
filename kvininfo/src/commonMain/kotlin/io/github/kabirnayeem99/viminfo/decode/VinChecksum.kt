@@ -17,11 +17,17 @@ internal object VinChecksum {
     // ISO 3779 positional weights; index 8 (the check digit) carries weight 0.
     private val positionWeights = intArrayOf(8, 7, 6, 5, 4, 3, 2, 10, 0, 9, 8, 7, 6, 5, 4, 3, 2)
 
-    // ISO 3779 letter-to-number transliteration table.
-    private val transliterationValues = mapOf(
-        'A' to 1, 'B' to 2, 'C' to 3, 'D' to 4, 'E' to 5, 'F' to 6, 'G' to 7, 'H' to 8,
-        'J' to 1, 'K' to 2, 'L' to 3, 'M' to 4, 'N' to 5, 'P' to 7, 'R' to 9,
-        'S' to 2, 'T' to 3, 'U' to 4, 'V' to 5, 'W' to 6, 'X' to 7, 'Y' to 8, 'Z' to 9,
+    // ISO 3779 letter-to-number transliteration table, indexed by (char - 'A').
+    // 0 = invalid (I, O, Q are excluded from the VIN alphabet).
+    private val transliterationTable = intArrayOf(
+        1, 2, 3, 4, 5, 6, 7, 8, // A-H
+        0,                        // I (invalid)
+        1, 2, 3, 4, 5,           // J-N
+        0,                        // O (invalid)
+        7,                        // P
+        0,                        // Q (invalid)
+        9,                        // R
+        2, 3, 4, 5, 6, 7, 8, 9, // S-Z
     )
 
     /**
@@ -35,8 +41,9 @@ internal object VinChecksum {
     fun calculate(vin: String): Char {
         if (vin.length != VinFormat.VIN_LENGTH) throw InvalidVinLengthException(vin)
 
-        val sum = vin.foldIndexed(0) { index, total, char ->
-            total + transliterate(char) * positionWeights[index]
+        var sum = 0
+        for (i in 0 until VinFormat.VIN_LENGTH) {
+            sum += transliterate(vin[i]) * positionWeights[i]
         }
 
         val remainder = sum % CHECKSUM_MODULUS
@@ -46,7 +53,14 @@ internal object VinChecksum {
     /** Whether the check digit in [vin] matches the value computed from the rest of the VIN. */
     fun matches(vin: String): Boolean = calculate(vin) == vin[CHECK_DIGIT_INDEX]
 
-    private fun transliterate(char: Char): Int =
-        char.digitToIntOrNull() ?: transliterationValues[char]
-        ?: throw IllegalArgumentException("Invalid VIN character: '$char'")
+    private fun transliterate(char: Char): Int {
+        val digit = char.digitToIntOrNull()
+        if (digit != null) return digit
+        val idx = char - 'A'
+        if (idx < 0 || idx >= transliterationTable.size)
+            throw IllegalArgumentException("Invalid VIN character: '$char'")
+        val value = transliterationTable[idx]
+        if (value == 0) throw IllegalArgumentException("Invalid VIN character: '$char'")
+        return value
+    }
 }
