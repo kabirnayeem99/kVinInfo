@@ -6,6 +6,7 @@ plugins {
     alias(libs.plugins.androidKotlinMultiplatformLibrary)
     alias(libs.plugins.kotlinxSerialization)
     alias(libs.plugins.maven.publish)
+    alias(libs.plugins.kover)
 }
 
 mavenPublishing {
@@ -45,6 +46,16 @@ mavenPublishing {
 
     publishToMavenCentral()
     signAllPublications()
+}
+
+kover {
+    reports {
+        verify {
+            rule("Line coverage must be at least 90%") {
+                minBound(90)
+            }
+        }
+    }
 }
 
 kotlin {
